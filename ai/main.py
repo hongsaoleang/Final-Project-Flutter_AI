@@ -74,26 +74,19 @@ def health_check():
 # Inference Endpoints
 # ==========================================
 
+from pipelines.text_pipeline import pipeline as text_pipeline
+
 @app.post("/generate-text", response_model=AiResponsePayload)
 def generate_text(payload: AiRequestPayload):
     prompt = payload.prompt or ""
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt is required for text generation.")
 
-    generated_text = (
-        f"MyAI Assistant:\n"
-        f"Regarding '{prompt}': A computer network is an interconnected system of hardware components "
-        f"and software protocols that enable computers and peripherals to exchange data, communicate, "
-        f"and share distributed computational resources seamlessly."
-        if "network" in prompt.lower() else
-        f"MyAI Assistant:\n"
-        f"I analyzed your request: '{prompt}'. As your multimodal personal AI assistant, I process language, "
-        f"images, and data across the progressive learning pipeline."
-    )
+    generated_text = text_pipeline.generate(prompt)
 
     return AiResponsePayload(
         response=generated_text,
-        model_used="MyAI-TinyLLM-v1",
+        model_used="MyAI-TextPipeline-v1",
         status="SUCCESS"
     )
 
