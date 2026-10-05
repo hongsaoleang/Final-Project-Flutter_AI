@@ -30,6 +30,20 @@ class MapGuideScreenState extends State<MapGuideScreen> {
   bool _isLoading = false;
   String _selectedTileLayer = 'osm'; // 'osm' or 'carto_dark'
 
+  final List<Map<String, String>> _cambodiaQuickDestinations = [
+    {'name': 'Siem Reap', 'label': 'Siem Reap'},
+    {'name': 'Angkor Wat', 'label': 'Angkor Wat'},
+    {'name': 'Phnom Penh', 'label': 'Phnom Penh'},
+    {'name': 'Royal Palace, Phnom Penh', 'label': 'Royal Palace'},
+    {'name': 'Bokor Mountain, Kampot', 'label': 'Kampot (Bokor)'},
+    {'name': 'Battambang', 'label': 'Battambang'},
+    {'name': 'Kep', 'label': 'Kep'},
+    {'name': 'Bou Sra Waterfall, Mondulkiri', 'label': 'Mondulkiri'},
+    {'name': 'Koh Rong', 'label': 'Koh Rong'},
+    {'name': 'Sihanoukville', 'label': 'Sihanoukville'},
+    {'name': 'Preah Vihear Temple', 'label': 'Preah Vihear'},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -268,9 +282,9 @@ class MapGuideScreenState extends State<MapGuideScreen> {
       final targetPlace = MapService.extractDestinationFromPrompt(query);
 
       // Single destination query - guide from user's current effective location (live GPS or home)
-      var results = await _mapService.searchPlace('$targetPlace, ${_userLocService.city}, ${_userLocService.country}');
+      var results = await _mapService.searchPlace(targetPlace);
       if (results.isEmpty) {
-        results = await _mapService.searchPlace(targetPlace);
+        results = await _mapService.searchPlace('$targetPlace, Cambodia');
       }
       if (results.isNotEmpty) {
         setState(() {
@@ -356,7 +370,7 @@ class MapGuideScreenState extends State<MapGuideScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.location_on, color: Colors.redAccent),
-                title: const Text('Set as Destination', style: TextStyle(color: Colors.white)),
+                title: const Text('Set as Destination (Get Directions)', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() {
@@ -367,6 +381,17 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                     );
                   });
                   _calculateRoute();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.map_rounded, color: Color(0xFF1A73E8)),
+                title: const Text('Open in Google Maps', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _mapService.openGoogleMapsDirections(
+                    origin: _origin.coordinates,
+                    destination: point,
+                  );
                 },
               ),
             ],
@@ -460,6 +485,32 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+
+                // Open in Google Maps action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+                    label: const Text(
+                      'Open in Google Maps (Turn-by-Turn GPS)',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A73E8), // Google Maps Blue
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      _mapService.openGoogleMapsDirections(
+                        origin: _origin.coordinates,
+                        destination: _destination.coordinates,
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -868,17 +919,55 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                           ),
                         );
                       }),
-                      // Dynamic local city landmarks
-                      ..._userLocService.popularLandmarksInCity.map((landmark) {
+                      // 1. My Current Location Quick Action Chip
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          backgroundColor: _userLocService.isGpsActive ? const Color(0xFF1B4332) : AppTheme.cardDark.withValues(alpha: 0.95),
+                          side: BorderSide(
+                            color: _userLocService.isGpsActive ? const Color(0xFF10B981) : AppTheme.primaryLight,
+                            width: 1.5,
+                          ),
+                          avatar: Icon(
+                            _userLocService.isGpsActive ? Icons.gps_fixed : Icons.my_location,
+                            size: 14,
+                            color: const Color(0xFF10B981),
+                          ),
+                          label: Text(
+                            _userLocService.isGpsActive ? '📍 My Live GPS' : '📍 My Location',
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            _detectAndCenterGps();
+                          },
+                        ),
+                      ),
+                      // 2. Cambodian Common Destination Chips
+                      ..._cambodiaQuickDestinations.map((dest) {
+                        final isDest = _destination.name.toLowerCase().contains(dest['name']!.toLowerCase());
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ActionChip(
-                            backgroundColor: AppTheme.surfaceDark.withValues(alpha: 0.9),
-                            avatar: const Icon(Icons.place, size: 13, color: AppTheme.primaryLight),
-                            label: Text(landmark, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                            onPressed: () {
-                              _searchController.text = landmark;
-                              _onSearchSubmit(landmark);
+                            backgroundColor: isDest ? AppTheme.primaryColor : AppTheme.cardDark.withValues(alpha: 0.9),
+                            side: BorderSide(
+                              color: isDest ? const Color(0xFF10B981) : Colors.white24,
+                            ),
+                            avatar: Icon(
+                              Icons.location_on,
+                              size: 13,
+                              color: isDest ? Colors.white : AppTheme.primaryLight,
+                            ),
+                            label: Text(
+                              dest['label']!,
+                              style: TextStyle(
+                                color: isDest ? Colors.white : Colors.white70,
+                                fontSize: 11,
+                                fontWeight: isDest ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            onPressed: () async {
+                              _searchController.text = dest['name']!;
+                              await _onSearchSubmit(dest['name']!);
                             },
                           ),
                         );
@@ -891,88 +980,83 @@ class MapGuideScreenState extends State<MapGuideScreen> {
           ),
         ),
 
-        // 3. Map Controls (GPS / Share / AI Assistant / Zoom / Recenter / Layer Switch)
+        // 3. Compact Floating Map Tools (Positioned relative to bottom to avoid overlapping top chips or bottom route sheet)
         Positioned(
-          right: 16,
-          top: 150,
-          child: Column(
-            children: [
-              FloatingActionButton.small(
-                heroTag: 'gps_locate_btn',
-                backgroundColor: _userLocService.isGpsActive ? Colors.green.shade800 : AppTheme.cardDark,
-                tooltip: 'My Live GPS Location',
-                onPressed: _detectAndCenterGps,
-                child: Icon(
-                  _userLocService.isGpsActive ? Icons.gps_fixed : Icons.my_location,
-                  color: _userLocService.isGpsActive ? Colors.greenAccent : AppTheme.primaryLight,
+          right: 14,
+          bottom: _currentRoute != null ? 180 : 28,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.cardDark.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white12),
+              boxShadow: const [
+                BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. My GPS Location Button
+                IconButton(
+                  icon: Icon(
+                    _userLocService.isGpsActive ? Icons.gps_fixed : Icons.my_location,
+                    color: _userLocService.isGpsActive ? Colors.greenAccent : AppTheme.primaryLight,
+                    size: 20,
+                  ),
+                  tooltip: 'Locate with Live GPS',
+                  onPressed: _detectAndCenterGps,
                 ),
-              ),
-              const SizedBox(height: 8),
-              FloatingActionButton.small(
-                heroTag: 'share_loc_btn',
-                backgroundColor: AppTheme.cardDark,
-                tooltip: 'Share My Location',
-                onPressed: _openShareLocationDialog,
-                child: const Icon(Icons.share_location, color: Colors.cyanAccent),
-              ),
-              const SizedBox(height: 8),
-              FloatingActionButton.small(
-                heroTag: 'ai_guide_btn',
-                backgroundColor: AppTheme.primaryColor,
-                tooltip: 'Ask AI Where to Go',
-                onPressed: _openAiSearchDialog,
-                child: const Icon(Icons.auto_awesome, color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              FloatingActionButton.small(
-                heroTag: 'zoom_in',
-                backgroundColor: AppTheme.cardDark,
-                child: const Icon(Icons.add, color: Colors.white),
-                onPressed: () {
-                  final zoom = _mapController.camera.zoom + 1;
-                  _mapController.move(_mapController.camera.center, zoom);
-                },
-              ),
-              const SizedBox(height: 8),
-              FloatingActionButton.small(
-                heroTag: 'zoom_out',
-                backgroundColor: AppTheme.cardDark,
-                child: const Icon(Icons.remove, color: Colors.white),
-                onPressed: () {
-                  final zoom = _mapController.camera.zoom - 1;
-                  _mapController.move(_mapController.camera.center, zoom);
-                },
-              ),
-              const SizedBox(height: 8),
-              FloatingActionButton.small(
-                heroTag: 'recenter',
-                backgroundColor: AppTheme.cardDark,
-                onPressed: _fitRouteBounds,
-                child: const Icon(Icons.center_focus_strong, color: AppTheme.primaryLight),
-              ),
-              const SizedBox(height: 8),
-              FloatingActionButton.small(
-                heroTag: 'layer_toggle',
-                backgroundColor: AppTheme.cardDark,
-                child: const Icon(Icons.layers, color: Colors.white),
-                onPressed: () {
-                  setState(() {
-                    _selectedTileLayer = _selectedTileLayer == 'osm' ? 'carto_dark' : 'osm';
-                  });
-                },
-              ),
-            ],
+                const Divider(color: Colors.white12, height: 1),
+                // 2. Recenter / Fit Route Bounds Button
+                IconButton(
+                  icon: const Icon(Icons.center_focus_strong, color: Colors.white, size: 20),
+                  tooltip: 'Fit Route Bounds',
+                  onPressed: _fitRouteBounds,
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                // 3. Layer Toggle (Street / Dark)
+                IconButton(
+                  icon: const Icon(Icons.layers_rounded, color: Colors.cyanAccent, size: 20),
+                  tooltip: 'Toggle Map Layer',
+                  onPressed: () {
+                    setState(() {
+                      _selectedTileLayer = _selectedTileLayer == 'osm' ? 'carto_dark' : 'osm';
+                    });
+                  },
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                // 4. Zoom In
+                IconButton(
+                  icon: const Icon(Icons.add, color: Colors.white70, size: 18),
+                  tooltip: 'Zoom In',
+                  onPressed: () {
+                    final zoom = _mapController.camera.zoom + 1;
+                    _mapController.move(_mapController.camera.center, zoom);
+                  },
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                // 5. Zoom Out
+                IconButton(
+                  icon: const Icon(Icons.remove, color: Colors.white70, size: 18),
+                  tooltip: 'Zoom Out',
+                  onPressed: () {
+                    final zoom = _mapController.camera.zoom - 1;
+                    _mapController.move(_mapController.camera.center, zoom);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
 
         // 4. Bottom Floating Range & Guidance Card
         if (_currentRoute != null)
           Positioned(
-            left: 16,
-            right: 16,
-            bottom: 20,
+            left: 14,
+            right: 14,
+            bottom: 16,
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: AppTheme.cardDark.withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(20),
@@ -987,92 +1071,126 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                   // Origin -> Destination with Swap
                   Row(
                     children: [
-                      const Icon(Icons.trip_origin, color: Colors.greenAccent, size: 18),
+                      const Icon(Icons.trip_origin, color: Colors.greenAccent, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _origin.name,
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
                           overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.swap_horiz, color: AppTheme.primaryLight),
+                        icon: const Icon(Icons.swap_horiz, color: AppTheme.primaryLight, size: 22),
                         tooltip: 'Swap locations',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         onPressed: _swapOriginDestination,
                       ),
-                      const Icon(Icons.location_on, color: Colors.redAccent, size: 18),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.location_on, color: Colors.redAccent, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _destination.name,
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
                           overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ],
                   ),
-                  const Divider(color: Colors.white10, height: 16),
+                  const Divider(color: Colors.white10, height: 14),
 
-                  // Distance & Duration Badge (Responsive Wrap to prevent overflow)
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
+                  // Distance, Duration & Quick Navigation Buttons (Responsive for Mobile)
+                  Row(
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
+                      // Distance badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.straighten, size: 13, color: Colors.cyanAccent),
+                            const SizedBox(width: 4),
+                            Text(
+                              _currentRoute!.formattedDistance,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 11),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.straighten, size: 15, color: Colors.cyanAccent),
-                                const SizedBox(width: 5),
-                                Text(
-                                  _currentRoute!.formattedDistance,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.schedule, size: 15, color: Colors.amberAccent),
-                                const SizedBox(width: 5),
-                                Text(
-                                  _currentRoute!.formattedDuration,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.navigation, size: 15),
-                        label: const Text('AI Guide'),
+                      const SizedBox(width: 6),
+                      // Duration badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.schedule, size: 13, color: Colors.amberAccent),
+                            const SizedBox(width: 4),
+                            Text(
+                              _currentRoute!.formattedDuration,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      // AI Guide button
+                      ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         onPressed: _showGuidanceDetailsModal,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.assistant_navigation, size: 13),
+                            SizedBox(width: 4),
+                            Text('Guide', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Google Maps button
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A73E8),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () {
+                          _mapService.openGoogleMapsDirections(
+                            origin: _origin.coordinates,
+                            destination: _destination.coordinates,
+                          );
+                        },
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.navigation_rounded, size: 13, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
                       ),
                     ],
                   ),

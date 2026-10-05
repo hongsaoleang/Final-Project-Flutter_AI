@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10,74 +9,253 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final TextEditingController _urlController = TextEditingController(text: ApiConstants.baseUrl);
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(16),
-      children: [
-        const Text('Backend & Infrastructure Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryLight)),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.cardDark,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.borderDark),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Spring Boot REST API URL', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _urlController,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppTheme.backgroundDark,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.check, color: Colors.greenAccent),
-                    onPressed: () {
-                      setState(() {
-                        ApiConstants.baseUrl = _urlController.text.trim();
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('API URL set to: ${ApiConstants.baseUrl}')),
-                      );
-                    },
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        children: [
+          // App Logo and Identity Header
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: isDark ? AppTheme.borderDark : Colors.grey.shade300,
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(26),
+                    child: Image.asset(
+                      'assets/images/logo.jpg',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                const Text(
+                  'MyAI',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Personal Multimodal AI Platform',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 40),
+
+          // Appearance Section Header
+          Text(
+            'APPEARANCE',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: isDark ? AppTheme.primaryLight : AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Theme Selector Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? AppTheme.borderDark : Colors.grey.shade200,
               ),
-              const SizedBox(height: 12),
-              const Text('Connected Database: PostgreSQL 16 (myai_db, user: user)', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const Text('Python AI Engine: FastAPI (localhost:8000, PyTorch 2.14)', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isDark ? Icons.dark_mode : Icons.light_mode,
+                      color: isDark ? const Color(0xFF818CF8) : Colors.amber,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Theme Mode',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose between dark and light appearance across all screens.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment<ThemeMode>(
+                        value: ThemeMode.dark,
+                        icon: Icon(Icons.dark_mode_outlined),
+                        label: Text('Dark Mode'),
+                      ),
+                      ButtonSegment<ThemeMode>(
+                        value: ThemeMode.light,
+                        icon: Icon(Icons.light_mode_outlined),
+                        label: Text('Light Mode'),
+                      ),
+                    ],
+                    selected: {AppTheme.themeNotifier.value},
+                    onSelectionChanged: (newSelection) {
+                      setState(() {
+                        AppTheme.themeNotifier.value = newSelection.first;
+                      });
+                    },
+                    style: ButtonStyle(
+                      shape: WidgetStateProperty.all(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      padding: WidgetStateProperty.all(
+                        const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // About Section Header
+          Text(
+            'ABOUT APPLICATION',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: isDark ? AppTheme.primaryLight : AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? AppTheme.borderDark : Colors.grey.shade200,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _buildInfoTile(
+                  icon: Icons.flag_rounded,
+                  title: 'Destination Focus',
+                  value: 'Cambodia (25 Provinces)',
+                  isDark: isDark,
+                ),
+                const Divider(height: 20),
+                _buildInfoTile(
+                  icon: Icons.map_rounded,
+                  title: 'Routing & Navigation',
+                  value: 'Live GPS + Google Maps Sync',
+                  isDark: isDark,
+                ),
+                const Divider(height: 20),
+                _buildInfoTile(
+                  icon: Icons.eco_rounded,
+                  title: 'Edition',
+                  value: 'Eco Travel Planner v2.4.0',
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'Designed for Mobile & Web • Made for Travelers in Cambodia',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white38 : Colors.black38,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    required bool isDark,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: isDark ? AppTheme.primaryLight : AppTheme.primaryColor),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text('About MyAI Multimodal Platform', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryLight)),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.cardDark,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.borderDark),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('MyAI v0.2.0 (From Scratch Learning Project)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              SizedBox(height: 6),
-              Text('Modular architecture combining Flutter Frontend, Java Spring Boot Backend, and Python/PyTorch Deep Learning engine.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white70 : Colors.black87,
           ),
         ),
       ],
-    ),
-  );
-}
+    );
+  }
 }

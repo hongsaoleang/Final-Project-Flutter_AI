@@ -28,7 +28,7 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
     _messages.add(
       ChatMessageModel(
         sender: 'myai',
-        text: '👋 Hello! I am your **AI Map & Travel Guide**.\n\nAsk me about any place in the world, distance between cities, recommended attractions, or directions! For example:\n• *"How far is Paris from London?"*\n• *"Best places to visit in Tokyo"*\n• *"Guide me to Central Park"*',
+        text: '👋 Suosdei! I am your **Cambodia AI Travel & Route Guide**.\n\nTell me where you want to go or what experience you are looking for in Cambodia! I will recommend popular spots across **Phnom Penh, Siem Reap, Kampot, Kep, Battambang, Mondulkiri, Koh Rong**, and plot the route directly from your location on the map.\n\n💡 Try asking:\n• *"Recommend the best places to visit in Siem Reap"*\n• *"What are common attractions in Phnom Penh?"*\n• *"Take me to Bokor Mountain in Kampot"*\n• *"Tell me about Battambang Bamboo Train"*\n• *"I want to see waterfalls and nature in Mondulkiri"*\n• *"How far is Angkor Wat from Phnom Penh?"*',
         mode: AiMode.textGeneration,
         timestamp: DateTime.now(),
       ),
@@ -79,13 +79,13 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
               final dKm = dMeters / 1000.0;
               final dMiles = dKm * 0.621371;
 
-              responseText = '''📏 **Calculated Range & Distance**:
+              responseText = '''📏 **Calculated Range Across Cambodia**:
 • **From**: ${p1Results.first.name}
 • **To**: ${p2Results.first.name}
-• **Straight-line Distance**: ${dKm.toStringAsFixed(2)} km (${dMiles.toStringAsFixed(2)} miles)
-• **Driving ETA (est.)**: ~${(dKm / 50.0 * 60).round()} mins
+• **Direct Distance**: ${dKm.toStringAsFixed(1)} km (${dMiles.toStringAsFixed(1)} miles)
+• **Driving ETA (est.)**: ~${(dKm / 55.0 * 60).round()} mins via National Highway
 
-💡 *Tip: Head over to the **Map Guide** tab to view the visual route line and turn-by-turn guidance!*''';
+💡 *Tap below to plot the interactive route on the **Live Map**!*''';
             }
           }
         }
@@ -146,23 +146,22 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
 
     // Specific famous Q&A pairs (e.g. capital of Cambodia)
     if (lowerQuery.contains('capital') && lowerQuery.contains('cambodia')) {
-      return 'Phnom Penh';
-    }
-    if (lowerQuery.contains('capital') && lowerQuery.contains('france')) {
-      return 'Paris';
-    }
-    if (lowerQuery.contains('capital') && lowerQuery.contains('japan')) {
-      return 'Tokyo';
+      return 'Royal Palace, Phnom Penh';
     }
 
-    // Curated famous landmarks & cities
+    // Common Cambodian landmarks & cities
     final places = [
-      'Angkor Wat', 'Phnom Penh', 'Siem Reap', 'Royal Palace', 'Central Market',
-      'Wat Phnom', 'Aeon Mall Sen Sok', 'Aeon Mall', 'Riverside Promenade',
-      'Sihanoukville', 'Kampot', 'Battambang', 'Pub Street', 'Old Market',
-      'Bayon Temple', 'Bokor Mountain', 'Bamboo Train', 'Koh Rong',
-      'Eiffel Tower', 'Times Square', 'Central Park', 'Louvre Museum',
-      'Tokyo Tower', 'Shibuya Crossing', 'Big Ben', 'Colosseum',
+      'Angkor Wat', 'Bayon Temple', 'Ta Prohm', 'Banteay Srei', 'Phnom Kulen', 'Pub Street', 'Siem Reap',
+      'Royal Palace', 'Wat Phnom', 'Central Market', 'Riverside Promenade', 'Tuol Sleng', 'Bassac Lane', 'Phnom Penh',
+      'Bokor Mountain', 'Bokor National Park', 'Kampot River', 'Secret Lake', 'Teuk Chhou', 'Kampot',
+      'Kep Crab Market', 'Rabbit Island', 'Koh Tonsay', 'Kep',
+      'Bamboo Train', 'Phnom Sampeau', 'Wat Banan', 'Wat Ek Phnom', 'Battambang',
+      'Koh Rong Sanloem', 'Koh Rong', 'Otres Beach', 'Sihanoukville',
+      'Bou Sra Waterfall', 'Sen Monorom', 'Mondulkiri',
+      'Yeak Laom Lake', 'Ratanakiri',
+      'Preah Vihear Temple', 'Preah Vihear',
+      'Sambor Prei Kuk', 'Kampong Thom',
+      'Bamboo Bridge', 'Koh Pen', 'Kampong Cham',
     ];
 
     for (final p in places) {
@@ -184,24 +183,65 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
       }
     }
 
+    // Smart defaults for concept keywords
+    if (lowerQuery.contains('waterfall') || lowerQuery.contains('nature')) {
+      return 'Bou Sra Waterfall, Mondulkiri';
+    }
+    if (lowerQuery.contains('temple') || lowerQuery.contains('heritage')) {
+      return 'Angkor Wat, Siem Reap';
+    }
+    if (lowerQuery.contains('beach') || lowerQuery.contains('island')) {
+      return 'Koh Rong Sanloem';
+    }
+    if (lowerQuery.contains('river') || lowerQuery.contains('relax')) {
+      return 'Kampot River, Kampot';
+    }
+
     return null;
   }
 
   Future<String> _generateRichTravelGuidance(String query) async {
     final locService = UserLocationService();
-    final originName = '${locService.city}, ${locService.country}';
+    final originName = '${locService.city}, Cambodia';
 
-    // Extract destination candidate from query
-    String destCandidate = query
-        .replaceAll(
-          RegExp(
-            r'(i want to go to|how to go to|guide me to|take me to|navigate to|go to|directions to|travel to|where is|tell me about)',
-            caseSensitive: false,
-          ),
-          '',
-        )
-        .trim();
-    if (destCandidate.isEmpty) destCandidate = query;
+    // Smart thematic recommendations for Cambodia
+    final lower = query.toLowerCase();
+    String destCandidate = '';
+    String thematicIntro = '';
+
+    if (lower.contains('waterfall') || lower.contains('cascade')) {
+      destCandidate = 'Bou Sra Waterfall, Mondulkiri';
+      thematicIntro = '🌊 **AI Recommendation**: Bou Sra Waterfall in Mondulkiri is Cambodia\'s most breathtaking multi-tiered natural cascade, surrounded by lush jungle and indigenous Bunong villages.';
+    } else if (lower.contains('siem reap') || lower.contains('angkor') || lower.contains('temple')) {
+      destCandidate = 'Angkor Wat, Siem Reap';
+      thematicIntro = '🏛️ **AI Recommendation**: Angkor Wat in Siem Reap is the ultimate Khmer wonder — best visited at sunrise, followed by Bayon and Ta Prohm.';
+    } else if (lower.contains('phnom penh') || lower.contains('capital') || lower.contains('city')) {
+      destCandidate = 'Royal Palace, Phnom Penh';
+      thematicIntro = '👑 **AI Recommendation**: The Royal Palace and riverside promenade in Phnom Penh showcase the Kingdom\'s regal history, Silver Pagoda, and bustling street cafes.';
+    } else if (lower.contains('kampot') || lower.contains('bokor') || lower.contains('river')) {
+      destCandidate = 'Bokor Mountain, Kampot';
+      thematicIntro = '🌿 **AI Recommendation**: Bokor National Park in Kampot offers panoramic ocean-facing mountain views, cool misty hill stations, and riverside firefly tours.';
+    } else if (lower.contains('battambang') || lower.contains('bamboo')) {
+      destCandidate = 'Bamboo Train, Battambang';
+      thematicIntro = '🚂 **AI Recommendation**: Battambang is Cambodia\'s cultural heartland, famed for the historic Bamboo Train (Norry) and the spectacular Phnom Sampeau bat cave sunset.';
+    } else if (lower.contains('beach') || lower.contains('island') || lower.contains('sea')) {
+      destCandidate = 'Koh Rong Sanloem';
+      thematicIntro = '🏖️ **AI Recommendation**: Koh Rong Sanloem features pristine turquoise waters, powdery white sand bays, and relaxed eco-bungalows.';
+    } else if (lower.contains('kep') || lower.contains('crab')) {
+      destCandidate = 'Kep Crab Market, Kep';
+      thematicIntro = '🦀 **AI Recommendation**: Kep is famous for its lively seaside Crab Market serving fried crab with fresh Kampot green pepper, alongside peaceful trails in Kep National Park.';
+    } else {
+      destCandidate = query
+          .replaceAll(
+            RegExp(
+              r'(i want to go to|how to go to|guide me to|take me to|navigate to|go to|directions to|travel to|where is|tell me about|recommend|show me)',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .trim();
+      if (destCandidate.isEmpty) destCandidate = 'Angkor Wat, Siem Reap';
+    }
 
     final results = await _mapService.searchPlace(destCandidate);
     if (results.isNotEmpty) {
@@ -217,29 +257,25 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
           ? '${(estDriveHours * 60).round()} mins'
           : '${estDriveHours.floor()}h ${((estDriveHours - estDriveHours.floor()) * 60).round()}m';
 
-      return '''📍 **AI Travel Guide: ${destPlace.name}**
-• **Departure (Where you live)**: $originName
-• **Destination**: ${destPlace.displayName}
-• **Direct Distance (Range)**: ${distKm.toStringAsFixed(1)} km (${distMiles.toStringAsFixed(1)} miles)
-• **Estimated Travel Time**: ~$driveTimeText by road / transit
+      return '''${thematicIntro.isNotEmpty ? '$thematicIntro\n\n' : ''}📍 **AI Route & Travel Plan**:
+• **From (Your Current Location)**: $originName
+• **Recommended Destination**: ${destPlace.displayName}
+• **Distance from You**: ${distKm.toStringAsFixed(1)} km (${distMiles.toStringAsFixed(1)} miles)
+• **Estimated Travel Time**: ~$driveTimeText via national highway
 
-🚗 **Transportation & Route Advice**:
-• Express vans, intercity buses, or private taxis are widely available for this route.
-${distKm > 200 ? '• Domestic and regional flights may also be available for quicker travel.' : '• Follow designated highways and monitor real-time traffic.'}
+🚗 **Travel Advice & Transport**:
+• Regular express buses (Giant Ibis, Larryta, Virak Buntham), private taxis, or local transit connect directly to this destination.
+• ${distKm > 200 ? 'Domestic flights from Phnom Penh to Siem Reap Angkor International (SAI) take just 45 mins.' : 'Comfortable road trip with scenic countryside stops.'}
 
-🏛️ **Attractions & Things to Do**:
-• Explore landmark historical sites, local cultural centers, and dining districts.
-• Ideal visiting duration: ${distKm > 100 ? '2 to 3 days' : 'Half-day to 1 day'}.
-
-💡 **AI Navigation Tip**:
-• Switch over to the **Map Guide** tab to view your route drawn in real-time with turn-by-turn guidance!''';
+💡 **Instant Live Route**:
+• Tap the button below to draw the exact route from your location on the **Live Map**!''';
     }
 
-    return '''🧭 **AI Travel Assistant**:
-Here is guidance for "$query":
-• **Your Current Living Base**: $originName
-• To see this destination on the interactive map with live route polylines and turn-by-turn directions, switch to the **Map Guide** tab or type the place name in the map search bar.
-• Optimal visiting hours are generally morning or late afternoon for smaller crowds.''';
+    return '''🧭 **Cambodia AI Travel Assistant**:
+Here is my recommendation for "$query":
+• **Your Current Location**: $originName
+• Common popular Cambodian destinations include **Siem Reap (Angkor Wat)**, **Phnom Penh (Royal Palace)**, **Kampot (Bokor Mountain)**, and **Battambang (Bamboo Train)**.
+• Tap below or switch to the **Map** tab to explore interactive routes across Cambodia!''';
   }
 
   void _scrollToBottom() {
@@ -256,24 +292,31 @@ Here is guidance for "$query":
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
+      bottom: false,
       child: Column(
       children: [
-        // Suggested Questions Header
+        // Suggested Questions Header (Cambodia Focused)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: AppTheme.cardDark,
+          color: isDark ? AppTheme.cardDark : Colors.white,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildPromptChip('Distance between Paris and London'),
+                _buildPromptChip('Angkor Wat from Phnom Penh', isDark),
                 const SizedBox(width: 8),
-                _buildPromptChip('Guide me to Times Square'),
+                _buildPromptChip('Best places in Kampot & Kep', isDark),
                 const SizedBox(width: 8),
-                _buildPromptChip('Distance between Tokyo and Kyoto'),
+                _buildPromptChip('Top landmarks in Phnom Penh', isDark),
                 const SizedBox(width: 8),
-                _buildPromptChip('Top landmarks in New York'),
+                _buildPromptChip('Waterfalls in Mondulkiri', isDark),
+                const SizedBox(width: 8),
+                _buildPromptChip('Battambang Bamboo Train', isDark),
+                const SizedBox(width: 8),
+                _buildPromptChip('Island trip to Koh Rong', isDark),
               ],
             ),
           ),
@@ -293,18 +336,29 @@ Here is guidance for "$query":
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.82,
+                    maxWidth: MediaQuery.of(context).size.width * 0.86,
                   ),
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isUser ? AppTheme.primaryColor : AppTheme.cardDark,
+                    color: isUser
+                        ? AppTheme.primaryColor
+                        : (isDark ? AppTheme.cardDark : Colors.white),
                     borderRadius: BorderRadius.circular(16).copyWith(
-                      bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(16),
-                      bottomLeft: !isUser ? const Radius.circular(0) : const Radius.circular(16),
+                      bottomRight: isUser ? const Radius.circular(2) : const Radius.circular(16),
+                      bottomLeft: !isUser ? const Radius.circular(2) : const Radius.circular(16),
                     ),
                     border: Border.all(
-                      color: isUser ? Colors.transparent : Colors.white12,
+                      color: isUser
+                          ? Colors.transparent
+                          : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +369,9 @@ Here is guidance for "$query":
                           Icon(
                             isUser ? Icons.person : Icons.assistant_navigation,
                             size: 14,
-                            color: isUser ? Colors.white70 : AppTheme.primaryLight,
+                            color: isUser
+                                ? Colors.white70
+                                : (isDark ? AppTheme.primaryLight : AppTheme.primaryColor),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -323,7 +379,9 @@ Here is guidance for "$query":
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isUser ? Colors.white70 : AppTheme.primaryLight,
+                              color: isUser
+                                  ? Colors.white70
+                                  : (isDark ? AppTheme.primaryLight : AppTheme.primaryColor),
                             ),
                           ),
                         ],
@@ -331,16 +389,24 @@ Here is guidance for "$query":
                       const SizedBox(height: 6),
                       SelectableText(
                         msg.text,
-                        style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+                        style: TextStyle(
+                          color: isUser
+                              ? Colors.white
+                              : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                          fontSize: 13.5,
+                          height: 1.45,
+                        ),
                       ),
                       if (!isUser && msg.destinationPlace != null && msg.destinationPlace!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.black38,
+                            color: isDark ? Colors.black38 : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppTheme.primaryLight.withValues(alpha: 0.35)),
+                            border: Border.all(
+                              color: AppTheme.primaryLight.withValues(alpha: 0.35),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,8 +418,8 @@ Here is guidance for "$query":
                                   Expanded(
                                     child: Text(
                                       'Destination: ${msg.destinationPlace}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                      style: TextStyle(
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
@@ -366,17 +432,20 @@ Here is guidance for "$query":
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.map, size: 15),
-                                  label: Text(
-                                    'Open on Map & Guide Me to ${msg.destinationPlace}',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  icon: const Icon(Icons.navigation_rounded, size: 14),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Open Map & Guide to ${msg.destinationPlace}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primaryColor,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    elevation: 2,
+                                    elevation: 1,
                                   ),
                                   onPressed: () {
                                     widget.onNavigateToMap?.call(msg.destinationPlace!);
@@ -397,28 +466,42 @@ Here is guidance for "$query":
 
         // Input Field
         Container(
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            color: AppTheme.cardDark,
-            border: Border(top: BorderSide(color: Colors.white10)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.cardDark : Colors.white,
+            border: Border(
+              top: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            ),
           ),
           child: SafeArea(
+            top: false,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Ask about any place or distance...',
-                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                      hintText: 'Ask about any place in Cambodia...',
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                        fontSize: 13,
+                      ),
                       filled: true,
-                      fillColor: AppTheme.surfaceDark,
+                      fillColor: isDark ? AppTheme.surfaceDark : const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     ),
                     onSubmitted: _sendMessage,
                   ),
@@ -431,7 +514,7 @@ Here is guidance for "$query":
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryLight),
                         )
-                      : const Icon(Icons.send, color: AppTheme.primaryLight),
+                      : Icon(Icons.send_rounded, color: isDark ? AppTheme.primaryLight : AppTheme.primaryColor),
                   onPressed: () => _sendMessage(_controller.text),
                 ),
               ],
@@ -443,10 +526,20 @@ Here is guidance for "$query":
   );
 }
 
-  Widget _buildPromptChip(String text) {
+  Widget _buildPromptChip(String text, bool isDark) {
     return ActionChip(
-      backgroundColor: AppTheme.surfaceDark,
-      label: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+      backgroundColor: isDark ? AppTheme.surfaceDark : const Color(0xFFF1F5F9),
+      side: BorderSide(
+        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+      ),
+      label: Text(
+        text,
+        style: TextStyle(
+          color: isDark ? Colors.white70 : const Color(0xFF334155),
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       onPressed: () => _sendMessage(text),
     );
   }

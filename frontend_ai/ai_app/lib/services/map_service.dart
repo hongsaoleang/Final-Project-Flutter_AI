@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/constants/api_constants.dart';
 import '../models/map_route.dart';
 
@@ -10,64 +11,99 @@ class MapService {
   factory MapService() => _instance;
   MapService._internal();
 
-  // Curated database of famous landmarks and cities for instant resolution and offline reliability
+  // Curated database of famous landmarks, cities, and all 25 provinces in Cambodia
   static final Map<String, LatLng> _famousPlaces = {
-    // Cambodia
-    'angkor wat': const LatLng(13.4125, 103.8670),
+    // Cambodia Provinces & Cities
     'phnom penh': const LatLng(11.5564, 104.9282),
     'siem reap': const LatLng(13.3671, 103.8448),
+    'angkor wat': const LatLng(13.4125, 103.8670),
+    'bayon temple': const LatLng(13.4414, 103.8587),
+    'ta prohm': const LatLng(13.4348, 103.8893),
+    'banteay srei': const LatLng(13.5989, 103.9630),
+    'phnom kulen': const LatLng(13.5667, 104.1000),
+    'tonle sap': const LatLng(13.0000, 104.0000),
+    'pub street': const LatLng(13.3551, 103.8548),
+    'old market': const LatLng(13.3539, 103.8553),
     'royal palace': const LatLng(11.5635, 104.9317),
     'central market': const LatLng(11.5696, 104.9218),
     'phsar thmey': const LatLng(11.5696, 104.9218),
     'wat phnom': const LatLng(11.5761, 104.9231),
-    'aeon mall': const LatLng(11.5478, 104.9332),
-    'aeon mall sen sok': const LatLng(11.5975, 104.8856),
-    'aeon 2': const LatLng(11.5975, 104.8856),
-    'aeon 1': const LatLng(11.5478, 104.9332),
     'riverside': const LatLng(11.5714, 104.9312),
     'riverside promenade': const LatLng(11.5714, 104.9312),
-    'phnom penh airport': const LatLng(11.5466, 104.8442),
-    'siem reap airport': const LatLng(13.4078, 103.8128),
-    'koh rong': const LatLng(10.7250, 103.2383),
-    'sihanoukville': const LatLng(10.6275, 103.5221),
-    'kampot': const LatLng(10.5942, 104.1640),
-    'battambang': const LatLng(13.0957, 103.2022),
-    'pub street': const LatLng(13.3551, 103.8548),
-    'old market': const LatLng(13.3539, 103.8553),
-    'bayon temple': const LatLng(13.4414, 103.8587),
-    'bokor mountain': const LatLng(10.6258, 104.0272),
-    'bamboo train': const LatLng(13.0560, 103.2201),
     'tuol sleng': const LatLng(11.5407, 104.9175),
     'killing fields': const LatLng(11.4844, 104.9020),
     'national museum': const LatLng(11.5658, 104.9290),
     'independence monument': const LatLng(11.5535, 104.9282),
-    // Global Famous Landmarks
-    'central park': const LatLng(40.785091, -73.968285),
-    'times square': const LatLng(40.758896, -73.985130),
-    'empire state building': const LatLng(40.748817, -73.985428),
-    'statue of liberty': const LatLng(40.689247, -74.044502),
-    'brooklyn bridge': const LatLng(40.706086, -73.996864),
-    'jfk airport': const LatLng(40.641311, -73.778139),
-    'eiffel tower': const LatLng(48.858370, 2.294481),
-    'louvre museum': const LatLng(48.860611, 2.337644),
-    'notre dame': const LatLng(48.852968, 2.349902),
-    'tokyo tower': const LatLng(35.658581, 139.745433),
-    'shibuya crossing': const LatLng(35.659482, 139.700554),
-    'tokyo station': const LatLng(35.681236, 139.767125),
-    'shinjuku': const LatLng(35.693840, 139.703549),
-    'london eye': const LatLng(51.503324, -0.119543),
-    'big ben': const LatLng(51.500729, -0.124625),
-    'tower bridge': const LatLng(51.505456, -0.075356),
-    'colosseum': const LatLng(41.890210, 12.492231),
-    'sydney opera house': const LatLng(-33.856784, 151.215297),
-    'burj khalifa': const LatLng(25.197197, 55.274376),
-    'golden gate bridge': const LatLng(37.819929, -122.478255),
-    'new york': const LatLng(40.712776, -74.005974),
-    'paris': const LatLng(48.856614, 2.352222),
-    'tokyo': const LatLng(35.676192, 139.650311),
-    'london': const LatLng(51.507351, -0.127758),
-    'san francisco': const LatLng(37.774929, -122.419416),
+    'bassac lane': const LatLng(11.5502, 104.9310),
+    'aeon mall': const LatLng(11.5478, 104.9332),
+    'aeon mall sen sok': const LatLng(11.5975, 104.8856),
+    'kampot': const LatLng(10.5942, 104.1640),
+    'bokor mountain': const LatLng(10.6258, 104.0272),
+    'teuk chhou': const LatLng(10.6653, 104.2253),
+    'kep': const LatLng(10.4828, 104.2941),
+    'kep crab market': const LatLng(10.4862, 104.2965),
+    'rabbit island': const LatLng(10.4372, 104.3283),
+    'koh tonsay': const LatLng(10.4372, 104.3283),
+    'battambang': const LatLng(13.0957, 103.2022),
+    'bamboo train': const LatLng(13.0560, 103.2201),
+    'phnom sampeau': const LatLng(13.0239, 103.0984),
+    'wat banan': const LatLng(12.9667, 103.1500),
+    'wat ek phnom': const LatLng(13.1583, 103.1833),
+    'sihanoukville': const LatLng(10.6275, 103.5221),
+    'koh rong': const LatLng(10.7250, 103.2383),
+    'koh rong sanloem': const LatLng(10.6083, 103.2986),
+    'otres beach': const LatLng(10.5739, 103.5519),
+    'mondulkiri': const LatLng(12.4558, 107.1881),
+    'sen monorom': const LatLng(12.4558, 107.1881),
+    'bou sra waterfall': const LatLng(12.5694, 107.4194),
+    'ratanakiri': const LatLng(13.7394, 106.9873),
+    'banlung': const LatLng(13.7394, 106.9873),
+    'yeak laom lake': const LatLng(13.7317, 107.0189),
+    'preah vihear': const LatLng(13.8072, 104.9814),
+    'preah vihear temple': const LatLng(14.3908, 104.6800),
+    'kampong cham': const LatLng(11.9934, 105.4635),
+    'kampong chhnang': const LatLng(12.2500, 104.6667),
+    'kampong speu': const LatLng(11.4533, 104.5208),
+    'kampong thom': const LatLng(12.7111, 104.8889),
+    'sambor prei kuk': const LatLng(12.8711, 105.0400),
+    'kandal': const LatLng(11.4833, 104.9500),
+    'takhmao': const LatLng(11.4833, 104.9500),
+    'koh kong': const LatLng(11.6153, 102.9838),
+    'kratie': const LatLng(12.4881, 106.0188),
+    'pailin': const LatLng(12.8489, 102.6092),
+    'pursat': const LatLng(12.5388, 103.9192),
+    'prey veng': const LatLng(11.4868, 105.3253),
+    'stung treng': const LatLng(13.5259, 105.9683),
+    'svay rieng': const LatLng(11.0879, 105.7993),
+    'takeo': const LatLng(10.9908, 104.7850),
+    'tboung khmum': const LatLng(11.9167, 105.6500),
+    'oddar meanchey': const LatLng(14.1833, 103.5167),
   };
+
+  /// Launch Google Maps navigation between origin and destination
+  Future<bool> openGoogleMapsDirections({
+    required LatLng origin,
+    required LatLng destination,
+  }) async {
+    final origLat = origin.latitude;
+    final origLng = origin.longitude;
+    final destLat = destination.latitude;
+    final destLng = destination.longitude;
+
+    final url =
+        'https://www.google.com/maps/dir/?api=1&origin=$origLat,$origLng&destination=$destLat,$destLng&travelmode=driving';
+    final uri = Uri.parse(url);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        return await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      return await launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+  }
 
   /// Natural-language prompt destination cleaner
   /// Converts prompts like "I want to go to Angkor Wat" -> "Angkor Wat"
@@ -126,9 +162,9 @@ class MapService {
       }
     }
 
-    // 2. Check exact or partial match in curated dictionary
+    // 2. Check exact or partial match in curated Cambodian dictionary
     for (final entry in _famousPlaces.entries) {
-      if (entry.key.contains(cleanQuery) || cleanQuery.contains(entry.key)) {
+      if (entry.key == cleanQuery || entry.key.contains(cleanQuery) || cleanQuery.contains(entry.key)) {
         final title = entry.key
             .split(' ')
             .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
@@ -136,7 +172,7 @@ class MapService {
         return [
           PlaceLocation(
             name: title,
-            displayName: '$title, Famous Landmark',
+            displayName: '$title, Cambodia',
             coordinates: entry.value,
             type: 'landmark',
           )
@@ -144,10 +180,11 @@ class MapService {
       }
     }
 
-    // 3. Fallback to OpenStreetMap Nominatim
+    // 3. Fallback to OpenStreetMap Nominatim with Cambodia query priority
     try {
+      final khQuery = query.toLowerCase().contains('cambodia') ? query : '$query, Cambodia';
       final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=5&addressdetails=1',
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(khQuery)}&format=json&limit=5&addressdetails=1',
       );
       final response = await http.get(
         uri,
@@ -164,12 +201,12 @@ class MapService {
       // Ignore network errors and fall back
     }
 
-    // Default fallback
+    // Default fallback in Cambodia (Phnom Penh Center)
     return [
       PlaceLocation(
         name: query,
-        displayName: '$query (Estimated Pin)',
-        coordinates: const LatLng(40.7580, -73.9855),
+        displayName: '$query, Cambodia',
+        coordinates: const LatLng(11.5564, 104.9282),
         type: 'general',
       )
     ];
