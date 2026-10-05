@@ -19,6 +19,7 @@ class ChatMessageModel {
   final AiMode mode;
   final DateTime timestamp;
   final String? imageUrl;
+  final String? destinationPlace;
 
   ChatMessageModel({
     required this.sender,
@@ -26,6 +27,7 @@ class ChatMessageModel {
     required this.mode,
     required this.timestamp,
     this.imageUrl,
+    this.destinationPlace,
   });
 
   bool get isUser => sender == 'user';

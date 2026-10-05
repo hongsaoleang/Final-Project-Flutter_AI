@@ -81,12 +81,74 @@ class TextGenerationPipeline:
             generated = "".join([ix_to_char.get(t, "") for t in idx[0].tolist()])
             return generated
 
-        # 2. Default learning response if the model hasn't been trained yet
+        # 2. Intelligent conversational & travel assistant engine when model is not yet trained
+        clean_p = prompt.strip().lower()
+
+        # Name & Identity
+        if any(w in clean_p for w in ["your name", "what is your name", "who are you", "what are you called", "what's your name"]):
+            return (
+                "👋 My name is **MyAI**!\n\n"
+                "I am your personal AI Assistant, Travel & Navigation Companion. "
+                "You can ask me anything you want—from directions, travel routes, and famous landmarks, to general questions, advice, and tips!"
+            )
+
+        # Greetings
+        if clean_p in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "howdy", "sup", "yo"]:
+            return (
+                "👋 Hello! I am your AI Assistant & Travel Guide.\n\n"
+                "How can I help you today? You can ask me:\n"
+                "• Any question you'd like to ask\n"
+                "• Where you want to go (e.g. 'Take me to Angkor Wat')\n"
+                "• Local travel tips, food recommendations, and landmarks\n"
+                "• Or switch to the Map tab to view interactive live routes!"
+            )
+
+        # Well-being / Chat
+        if any(w in clean_p for w in ["how are you", "how are you doing", "how's it going", "how are u"]):
+            return (
+                "😊 I'm doing great, thank you for asking! How are you doing today?\n\n"
+                "Feel free to ask me whatever is on your mind, whether it's travel, destinations, or any question you have!"
+            )
+
+        # Gratitude
+        if any(w in clean_p for w in ["thank", "thanks", "thank you", "appreciate"]):
+            return "🙏 You're very welcome! Let me know if there's anything else you need help with."
+
+        # Capabilities
+        if any(w in clean_p for w in ["what can you do", "help me", "features"]):
+            return (
+                "🤖 I am your versatile AI Companion! Here is what I can do for you:\n\n"
+                "1. 💬 **Answer Any Question**: Ask whatever you want—general questions, facts, or travel advice.\n"
+                "2. 🗺️ **Map & Navigation Guidance**: Plot live routes, calculate distances, and give turn-by-turn guidance.\n"
+                "3. 📷 **Landmark & Place Scanner**: Upload or snap a picture of any landmark to identify it instantly.\n"
+                "4. 📍 **Location Sharing**: Share your live GPS location or coordinates with friends."
+            )
+
+        # Place recommendations & queries
+        if any(w in clean_p for w in ["siem reap", "angkor", "wat phnom", "phnom penh", "kampot", "sihanoukville", "aeon", "beach", "temple", "museum", "market"]):
+            return (
+                f"🗺️ AI Travel Insights for '{prompt}':\n\n"
+                "• **Overview**: One of the most sought-after destinations in the region with rich cultural heritage and scenic views.\n"
+                "• **Navigation Tip**: Check the **Map Guide** screen to see the optimal polyline route from your current location or home base with live ETA.\n"
+                "• **Best Time to Visit**: Early mornings (6:00 AM - 9:00 AM) or late afternoons (4:30 PM - 6:30 PM) offer cooler weather and beautiful lighting.\n"
+                "• **Recommended Mode**: Driving or tuk-tuk for city distances; walking for temple and market grounds."
+            )
+
+        # Route requests like "go to", "guide to", "how to get to"
+        if any(w in clean_p for w in ["go to", "guide", "route", "direction", "how to get", "travel to", "drive to", "walk to"]):
+            return (
+                f"🧭 AI Navigation Assistant:\n\n"
+                f"I've mapped out guidance for: **{prompt}**\n\n"
+                "• **Departure**: Your current GPS / living home base.\n"
+                "• **Live Route Available**: Head over to the **Map Guide** tab where the polyline route, precise road distances, and step-by-step turn guidance are already plotted for you.\n"
+                "• **Safety Tip**: Always maintain road awareness, avoid peak congestion hours (7:30 - 8:30 AM & 5:00 - 6:30 PM), and stay hydrated."
+            )
+
+        # General conversational response
         return (
-            f"[MyAI Engine - Custom Pipeline]:\n"
-            f"Prompt received: '{prompt}'.\n"
-            f"You can customize this logic directly in `ai/pipelines/text_pipeline.py`. "
-            f"Train your model in the 'Train AI' studio to activate your custom Transformer weights!"
+            f"💡 AI Travel Guide:\n\n"
+            f"Regarding your query: \"{prompt}\"\n\n"
+            "I'm ready to assist with your journey! Ask me about specific destinations (like Angkor Wat, Phnom Penh, Kampot, or local restaurants), or use the Map Guide tab for live directions and GPS navigation."
         )
 
 

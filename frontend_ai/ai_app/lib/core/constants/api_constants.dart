@@ -2,6 +2,9 @@ class ApiConstants {
   // Default base URL for local development (change to device IP if testing on physical mobile)
   static String baseUrl = 'http://localhost:8080/api/v1';
 
+  // Google Maps Platform API Key
+  static const String googleMapsApiKey = 'AIzaSyBQ8fT204M9HYh3DcMJ99l0QP3wMAvFiuI';
+
   static String get healthEndpoint => '$baseUrl/ai/health';
   static String get textGenEndpoint => '$baseUrl/ai/generate-text';
   static String get textToImageEndpoint => '$baseUrl/ai/text-to-image';

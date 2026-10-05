@@ -14,8 +14,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
       children: [
         const Text('Backend & Infrastructure Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryLight)),
         const SizedBox(height: 12),
@@ -76,6 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 }

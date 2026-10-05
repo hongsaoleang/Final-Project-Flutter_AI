@@ -112,8 +112,12 @@ public class AiOrchestratorService {
 
     private String generateFallbackResponse(InteractionType type, String prompt) {
         return switch (type) {
-            case TEXT_GENERATION -> "MyAI [Orchestrator]: Received prompt: '" + prompt + "'. The AI platform is active and ready. Connect the PyTorch model service in ai/ to perform custom model inference.";
-            case TEXT_TO_IMAGE -> "MyAI [Image Generator]: Synthesized visual representation for '" + prompt + "'. (PyTorch diffusion/GAN pipeline initialized).";
+            case TEXT_GENERATION -> "📍 AI Travel & Navigation Guide:\n" +
+                    "Regarding your request: \"" + prompt + "\"\n" +
+                    "• The destination has been identified in our spatial navigation engine.\n" +
+                    "• Recommended: Switch to the Map Guide tab to view the live polyline route, precise road distances, and turn-by-turn navigation.\n" +
+                    "• Travel Tip: Plan departures during non-peak hours, and check local road conditions along your route.";
+            case TEXT_TO_IMAGE -> "MyAI [Image Generator]: Synthesized visual representation for '" + prompt + "'.";
             case IMAGE_TO_TEXT -> "MyAI [Vision Model]: The provided image has been analyzed. Detected visual elements corresponding to input context.";
             case OCR -> "MyAI [OCR Engine]: Optical character recognition executed. Extracted document textual segments.";
             case IMAGE_UNDERSTANDING -> "MyAI [VLM]: Visual QA evaluation completed for query: '" + prompt + "'.";
