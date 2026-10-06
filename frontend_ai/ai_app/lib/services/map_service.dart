@@ -80,10 +80,11 @@ class MapService {
     'oddar meanchey': const LatLng(14.1833, 103.5167),
   };
 
-  /// Launch Google Maps navigation between origin and destination
+  /// Launch Google Maps navigation between origin and destination with active travel mode
   Future<bool> openGoogleMapsDirections({
     required LatLng origin,
     required LatLng destination,
+    TravelMode mode = TravelMode.driving,
   }) async {
     final origLat = origin.latitude;
     final origLng = origin.longitude;
@@ -91,7 +92,7 @@ class MapService {
     final destLng = destination.longitude;
 
     final url =
-        'https://www.google.com/maps/dir/?api=1&origin=$origLat,$origLng&destination=$destLat,$destLng&travelmode=driving';
+        'https://www.google.com/maps/dir/?api=1&origin=$origLat,$origLng&destination=$destLat,$destLng&travelmode=${mode.googleMode}';
     final uri = Uri.parse(url);
 
     try {
@@ -106,7 +107,6 @@ class MapService {
   }
 
   /// Natural-language prompt destination cleaner
-  /// Converts prompts like "I want to go to Angkor Wat" -> "Angkor Wat"
   static String extractDestinationFromPrompt(String prompt) {
     var clean = prompt.trim();
     final patterns = [
@@ -121,7 +121,6 @@ class MapService {
         break;
       }
     }
-    // Remove trailing punctuation
     clean = clean.replaceAll(RegExp(r'[\?\.\!]+$'), '').trim();
     return clean.isEmpty ? prompt.trim() : clean;
   }
@@ -152,27 +151,23 @@ class MapService {
                   (loc['lat'] as num).toDouble(),
                   (loc['lng'] as num).toDouble(),
                 ),
-                type: 'google_place',
+                type: (item['types'] as List?)?.firstOrNull?.toString(),
               );
             }).toList();
           }
         }
       } catch (_) {
-        // Fallback to local / OSM
+        // Fall back to local dictionary
       }
     }
 
-    // 2. Check exact or partial match in curated Cambodian dictionary
+    // 2. Check local curated Cambodian places dictionary
     for (final entry in _famousPlaces.entries) {
-      if (entry.key == cleanQuery || entry.key.contains(cleanQuery) || cleanQuery.contains(entry.key)) {
-        final title = entry.key
-            .split(' ')
-            .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
-            .join(' ');
+      if (cleanQuery.contains(entry.key) || entry.key.contains(cleanQuery)) {
         return [
           PlaceLocation(
-            name: title,
-            displayName: '$title, Cambodia',
+            name: entry.key[0].toUpperCase() + entry.key.substring(1),
+            displayName: '${entry.key[0].toUpperCase() + entry.key.substring(1)}, Cambodia',
             coordinates: entry.value,
             type: 'landmark',
           )
@@ -180,15 +175,14 @@ class MapService {
       }
     }
 
-    // 3. Fallback to OpenStreetMap Nominatim with Cambodia query priority
+    // 3. Fallback to OpenStreetMap Nominatim API
     try {
-      final khQuery = query.toLowerCase().contains('cambodia') ? query : '$query, Cambodia';
       final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(khQuery)}&format=json&limit=5&addressdetails=1',
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent('$cleaned, Cambodia')}&format=json&limit=5&countrycodes=kh',
       );
       final response = await http.get(
         uri,
-        headers: {'User-Agent': 'FlutterAiMapGuide/1.0 (flutter_ai_app)'},
+        headers: {'User-Agent': 'MyAITravelGuide/1.0 (cambodia.travel.app)'},
       ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
@@ -230,7 +224,97 @@ class MapService {
 
   double _degToRad(double deg) => deg * (pi / 180.0);
 
-  /// Fetch route from Google Directions API or OSRM with polyline decoding
+  /// Computes realistic, logical distance and duration for Drive, Walk, and Cycle
+  ModeMetrics computeModeMetrics({
+    required double baselineRoadMeters,
+    required double straightMeters,
+    required TravelMode mode,
+  }) {
+    final km = baselineRoadMeters / 1000.0;
+    double distMeters;
+    double speedKmh;
+
+    switch (mode) {
+      case TravelMode.driving:
+        distMeters = baselineRoadMeters;
+        if (km < 8.0) {
+          speedKmh = 28.0; // Urban city traffic / signals
+        } else if (km < 40.0) {
+          speedKmh = 45.0; // Suburban / regional roads
+        } else {
+          speedKmh = 62.0; // National highway / intercity
+        }
+        break;
+
+      case TravelMode.walking:
+        if (km < 5.0) {
+          // Pedestrians can take shortcuts, alleys, footpaths
+          distMeters = max(straightMeters * 1.12, baselineRoadMeters * 0.92);
+        } else if (km < 25.0) {
+          distMeters = baselineRoadMeters * 0.95;
+        } else {
+          // Intercity walking along local secondary roads
+          distMeters = baselineRoadMeters * 1.03;
+        }
+        speedKmh = 4.8; // Average human walking speed (4.8 km/h)
+        break;
+
+      case TravelMode.cycling:
+        if (km < 10.0) {
+          distMeters = max(straightMeters * 1.15, baselineRoadMeters * 0.94);
+          speedKmh = 14.5; // City cycling pace
+        } else {
+          distMeters = baselineRoadMeters * 0.98;
+          speedKmh = 17.5; // Open road touring cycling
+        }
+        break;
+    }
+
+    final durationSec = (distMeters / 1000.0) / speedKmh * 3600.0;
+    return ModeMetrics(
+      distanceMeters: distMeters,
+      durationSeconds: durationSec,
+    );
+  }
+
+  /// Recalculates metrics and steps instantly for an existing route when the user taps Drive, Walk, or Cycle
+  RouteResult recalculateForMode(RouteResult baseRoute, TravelMode newMode) {
+    final straightDist = calculateDistanceMeters(
+      baseRoute.origin.coordinates,
+      baseRoute.destination.coordinates,
+    );
+    final baselineRoadMeters = baseRoute.baseRoadDistanceMeters > 0
+        ? baseRoute.baseRoadDistanceMeters
+        : baseRoute.distanceMeters;
+
+    final metrics = computeModeMetrics(
+      baselineRoadMeters: baselineRoadMeters,
+      straightMeters: straightDist,
+      mode: newMode,
+    );
+
+    final updatedSteps = _formatStepsForMode(baseRoute.steps, newMode);
+
+    return RouteResult(
+      origin: baseRoute.origin,
+      destination: baseRoute.destination,
+      distanceMeters: metrics.distanceMeters,
+      durationSeconds: metrics.durationSeconds,
+      polylinePoints: baseRoute.polylinePoints,
+      steps: updatedSteps,
+      travelMode: newMode,
+      aiGuideNotes: _generateLocalAiAdvice(
+        origin: baseRoute.origin,
+        destination: baseRoute.destination,
+        distanceKm: metrics.distanceMeters / 1000.0,
+        durationMinutes: (metrics.durationSeconds / 60.0).round(),
+        mode: newMode,
+      ),
+      baseRoadDistanceMeters: baselineRoadMeters,
+    );
+  }
+
+  /// Fetch route from OSRM or fallback with polyline and mode-accurate calculation
   Future<RouteResult> getRoute({
     required PlaceLocation origin,
     required PlaceLocation destination,
@@ -244,119 +328,84 @@ class MapService {
 
     List<LatLng> polylinePoints = [];
     List<RouteStep> steps = [];
-    double distanceMeters = straightDistance;
-    double durationSeconds = _estimateDurationSeconds(straightDistance, mode);
+    double baseRoadDistance = straightDistance * 1.25;
 
-    // 1. Attempt Google Directions API
-    if (ApiConstants.googleMapsApiKey.isNotEmpty) {
-      try {
-        final gMode = mode == TravelMode.driving
-            ? 'driving'
-            : (mode == TravelMode.walking ? 'walking' : 'bicycling');
-        final uri = Uri.parse(
-          'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.coordinates.latitude},${origin.coordinates.longitude}&destination=${destination.coordinates.latitude},${destination.coordinates.longitude}&mode=$gMode&key=${ApiConstants.googleMapsApiKey}',
-        );
-        final response = await http.get(uri).timeout(const Duration(seconds: 5));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
-            final gRoute = data['routes'][0];
-            final leg = gRoute['legs']?[0];
-            if (leg != null) {
-              distanceMeters = (leg['distance']?['value'] as num?)?.toDouble() ?? distanceMeters;
-              durationSeconds = (leg['duration']?['value'] as num?)?.toDouble() ?? durationSeconds;
-            }
-            final enc = gRoute['overview_polyline']?['points'];
-            if (enc is String && enc.isNotEmpty) {
-              polylinePoints = _decodeGooglePolyline(enc);
-            }
-            if (leg != null && leg['steps'] != null) {
-              final rawSteps = leg['steps'] as List;
-              steps = rawSteps.map((s) {
-                final rawHtml = s['html_instructions']?.toString() ?? 'Continue';
-                final cleanInst = rawHtml.replaceAll(RegExp(r'<[^>]*>'), ' ');
-                return RouteStep(
-                  instruction: cleanInst.trim(),
-                  distanceMeters: (s['distance']?['value'] as num?)?.toDouble() ?? 0.0,
-                  durationSeconds: (s['duration']?['value'] as num?)?.toDouble() ?? 0.0,
-                );
-              }).toList();
-            }
+    // 1. Fetch road geometry from OSRM
+    try {
+      final profile = mode.osrmProfile;
+      final uri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/$profile/${origin.coordinates.longitude},${origin.coordinates.latitude};${destination.coordinates.longitude},${destination.coordinates.latitude}?overview=full&geometries=geojson&steps=true',
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['routes'] != null && (data['routes'] as List).isNotEmpty) {
+          final route = data['routes'][0];
+          baseRoadDistance = (route['distance'] as num).toDouble();
+
+          final coords = route['geometry']['coordinates'] as List;
+          polylinePoints = coords.map((c) => LatLng(c[1] as double, c[0] as double)).toList();
+
+          if (route['legs'] != null && (route['legs'] as List).isNotEmpty) {
+            final rawSteps = route['legs'][0]['steps'] as List;
+            steps = rawSteps.map((s) {
+              final maneuver = s['maneuver']?['type'] ?? 'continue';
+              final modifier = s['maneuver']?['modifier'] ?? '';
+              final name = s['name']?.toString().isNotEmpty == true ? s['name'] : 'road';
+              final instruction = _formatStepInstruction(maneuver, modifier, name, mode);
+              final stepDist = (s['distance'] as num?)?.toDouble() ?? 0.0;
+              return RouteStep(
+                instruction: instruction,
+                distanceMeters: stepDist,
+                durationSeconds: _estimateDurationSeconds(stepDist, mode),
+              );
+            }).toList();
           }
         }
-      } catch (_) {
-        // Fall back to OSRM
       }
+    } catch (_) {
+      // Fall back to intermediate points
     }
 
-    // 2. If Google Directions didn't populate polyline, try OSRM
-    if (polylinePoints.isEmpty) {
-      try {
-        final profile = mode.osrmProfile;
-        final uri = Uri.parse(
-          'https://router.project-osrm.org/route/v1/$profile/${origin.coordinates.longitude},${origin.coordinates.latitude};${destination.coordinates.longitude},${destination.coordinates.latitude}?overview=full&geometries=geojson&steps=true',
-        );
-
-        final response = await http.get(uri).timeout(const Duration(seconds: 5));
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['routes'] != null && (data['routes'] as List).isNotEmpty) {
-            final route = data['routes'][0];
-            distanceMeters = (route['distance'] as num).toDouble();
-            durationSeconds = (route['duration'] as num).toDouble();
-
-            final coords = route['geometry']['coordinates'] as List;
-            polylinePoints = coords.map((c) => LatLng(c[1] as double, c[0] as double)).toList();
-
-            if (route['legs'] != null && (route['legs'] as List).isNotEmpty) {
-              final rawSteps = route['legs'][0]['steps'] as List;
-              steps = rawSteps.map((s) {
-                final maneuver = s['maneuver']?['type'] ?? 'continue';
-                final modifier = s['maneuver']?['modifier'] ?? '';
-                final name = s['name']?.toString().isNotEmpty == true ? s['name'] : 'road';
-                final instruction = _formatStepInstruction(maneuver, modifier, name);
-                return RouteStep(
-                  instruction: instruction,
-                  distanceMeters: (s['distance'] as num?)?.toDouble() ?? 0.0,
-                  durationSeconds: (s['duration'] as num?)?.toDouble() ?? 0.0,
-                );
-              }).toList();
-            }
-          }
-        }
-      } catch (_) {
-        // Fall back to geodesic line
-      }
-    }
-
-    // 3. Fallback interpolation
+    // 2. Fallback interpolation if network returned no points
     if (polylinePoints.isEmpty) {
       polylinePoints = _generateIntermediatePoints(
         origin.coordinates,
         destination.coordinates,
       );
+      final action = mode == TravelMode.walking
+          ? 'Walk'
+          : (mode == TravelMode.cycling ? 'Cycle' : 'Drive');
       steps = [
         RouteStep(
           instruction: 'Start journey from ${origin.name}',
-          distanceMeters: distanceMeters * 0.1,
-          durationSeconds: durationSeconds * 0.1,
+          distanceMeters: baseRoadDistance * 0.1,
+          durationSeconds: _estimateDurationSeconds(baseRoadDistance * 0.1, mode),
         ),
         RouteStep(
-          instruction: 'Proceed along main transit corridor toward ${destination.name}',
-          distanceMeters: distanceMeters * 0.8,
-          durationSeconds: durationSeconds * 0.8,
+          instruction: '$action along main transit corridor toward ${destination.name}',
+          distanceMeters: baseRoadDistance * 0.8,
+          durationSeconds: _estimateDurationSeconds(baseRoadDistance * 0.8, mode),
         ),
         RouteStep(
           instruction: 'Arrive at destination: ${destination.name}',
-          distanceMeters: distanceMeters * 0.1,
-          durationSeconds: durationSeconds * 0.1,
+          distanceMeters: baseRoadDistance * 0.1,
+          durationSeconds: _estimateDurationSeconds(baseRoadDistance * 0.1, mode),
         ),
       ];
     }
 
-    final distanceKm = distanceMeters / 1000.0;
-    final durationMinutes = (durationSeconds / 60.0).round();
+    // 3. Compute mathematically sound metrics for the requested mode
+    final metrics = computeModeMetrics(
+      baselineRoadMeters: baseRoadDistance,
+      straightMeters: straightDistance,
+      mode: mode,
+    );
+
+    final distanceKm = metrics.distanceMeters / 1000.0;
+    final durationMinutes = (metrics.durationSeconds / 60.0).round();
 
     final aiAdvice = await _generateAiAdvice(
       origin: origin,
@@ -370,51 +419,21 @@ class MapService {
     return RouteResult(
       origin: origin,
       destination: destination,
-      distanceMeters: distanceMeters,
-      durationSeconds: durationSeconds,
+      distanceMeters: metrics.distanceMeters,
+      durationSeconds: metrics.durationSeconds,
       polylinePoints: polylinePoints,
       steps: steps,
       travelMode: mode,
       aiGuideNotes: aiAdvice,
+      baseRoadDistanceMeters: baseRoadDistance,
     );
-  }
-
-  /// Decode Google polyline algorithm format into LatLng points
-  List<LatLng> _decodeGooglePolyline(String encoded) {
-    List<LatLng> poly = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      poly.add(LatLng(lat / 1e5, lng / 1e5));
-    }
-    return poly;
   }
 
   double _estimateDurationSeconds(double meters, TravelMode mode) {
     double speedKmh;
     switch (mode) {
       case TravelMode.driving:
-        speedKmh = 40.0;
+        speedKmh = 45.0;
         break;
       case TravelMode.cycling:
         speedKmh = 16.0;
@@ -427,13 +446,51 @@ class MapService {
     return hours * 3600.0;
   }
 
-  String _formatStepInstruction(String maneuver, String modifier, String name) {
-    if (maneuver == 'depart') return 'Depart toward $name';
+  String _formatStepInstruction(String maneuver, String modifier, String name, TravelMode mode) {
+    String action;
+    switch (mode) {
+      case TravelMode.driving:
+        action = 'Drive';
+        break;
+      case TravelMode.walking:
+        action = 'Walk';
+        break;
+      case TravelMode.cycling:
+        action = 'Cycle';
+        break;
+    }
+
+    if (maneuver == 'depart') return '$action toward $name';
     if (maneuver == 'arrive') return 'Arrive at $name';
     if (modifier.isNotEmpty) {
       return '$maneuver $modifier onto $name';
     }
-    return 'Continue on $name';
+    return '$action along $name';
+  }
+
+  List<RouteStep> _formatStepsForMode(List<RouteStep> steps, TravelMode mode) {
+    String actionWord;
+    switch (mode) {
+      case TravelMode.driving:
+        actionWord = 'Drive';
+        break;
+      case TravelMode.walking:
+        actionWord = 'Walk';
+        break;
+      case TravelMode.cycling:
+        actionWord = 'Cycle';
+        break;
+    }
+
+    return steps.map((s) {
+      var inst = s.instruction;
+      inst = inst.replaceAll(RegExp(r'\b(Drive|Walk|Cycle|Ride)\b', caseSensitive: false), actionWord);
+      return RouteStep(
+        instruction: inst,
+        distanceMeters: s.distanceMeters,
+        durationSeconds: _estimateDurationSeconds(s.distanceMeters, mode),
+      );
+    }).toList();
   }
 
   List<LatLng> _generateIntermediatePoints(LatLng start, LatLng end) {
@@ -448,6 +505,47 @@ class MapService {
     return points;
   }
 
+  String _formatDurationString(int durationMinutes) {
+    if (durationMinutes < 60) {
+      return '$durationMinutes mins';
+    }
+    final hours = durationMinutes ~/ 60;
+    final mins = durationMinutes % 60;
+    if (hours >= 24) {
+      final days = hours ~/ 24;
+      final remH = hours % 24;
+      return '${days}d ${remH}h ($hours hrs)';
+    }
+    return '${hours}h ${mins}m';
+  }
+
+  String _generateLocalAiAdvice({
+    required PlaceLocation origin,
+    required PlaceLocation destination,
+    required double distanceKm,
+    required int durationMinutes,
+    required TravelMode mode,
+  }) {
+    final modeTips = {
+      TravelMode.driving: 'Expected moderate traffic. Consider parking availability near ${destination.name}. Drive with care on national roads.',
+      TravelMode.walking: 'Pedestrian route. Wear comfortable shoes, stay hydrated under the sun, and use designated sidewalks or road shoulders.',
+      TravelMode.cycling: 'Scenic cycling route. Check tire pressure, wear a helmet, and keep an eye on traffic along major intersections.',
+    };
+
+    final timeFormatted = _formatDurationString(durationMinutes);
+
+    return '''📍 **AI Route Briefing**:
+• **From**: ${origin.name}
+• **To**: ${destination.name}
+• **Distance (${mode.label})**: ${distanceKm.toStringAsFixed(1)} km (${(distanceKm * 0.621371).toStringAsFixed(1)} miles)
+• **Estimated Time**: ~$timeFormatted by ${mode.label}
+
+💡 **AI Guide Insights for ${mode.label}**:
+• ${modeTips[mode] ?? 'Safe travels!'}
+• Check weather conditions before departure.
+• Best time to travel is morning or late afternoon to avoid midday tropical heat.''';
+  }
+
   Future<String> _generateAiAdvice({
     required PlaceLocation origin,
     required PlaceLocation destination,
@@ -456,7 +554,6 @@ class MapService {
     required TravelMode mode,
     String? userPrompt,
   }) async {
-    // Try calling local Python AI orchestrator if available
     try {
       final response = await http.post(
         Uri.parse('http://localhost:8000/guide-map'),
@@ -475,11 +572,12 @@ class MapService {
         if (data['advice'] != null) {
           final stops = (data['recommended_stops'] as List?)?.join('\n• ') ?? '';
           final tips = (data['travel_tips'] as List?)?.join('\n• ') ?? '';
+          final timeFormatted = _formatDurationString(durationMinutes);
           return '''📍 **AI Route Briefing**:
 ${data['advice']}
 
-• **Direct Distance (Range)**: ${distanceKm.toStringAsFixed(2)} km (${(distanceKm * 0.621371).toStringAsFixed(2)} miles)
-• **Estimated Travel Time**: ~$durationMinutes min by ${mode.label}
+• **Direct Distance**: ${distanceKm.toStringAsFixed(1)} km (${(distanceKm * 0.621371).toStringAsFixed(1)} miles)
+• **Estimated Time**: ~$timeFormatted by ${mode.label}
 
 💡 **AI Guide Highlights & Tips**:
 • $tips
@@ -489,25 +587,15 @@ ${data['advice']}
         }
       }
     } catch (_) {
-      // Local AI offline, fallback to built-in smart AI navigator logic
+      // Local AI offline, fallback to built-in smart AI advice
     }
 
-    final modeTips = {
-      TravelMode.driving: 'Expected light to moderate traffic. Consider parking availability near ${destination.name}.',
-      TravelMode.walking: 'Pleasant pedestrian route. Keep a water bottle handy and use designated crosswalks.',
-      TravelMode.cycling: 'Check bike lane availability along major avenues. Wear a helmet and watch for vehicle doors.',
-    };
-
-    return '''📍 **AI Route Briefing**:
-• **From**: ${origin.name}
-• **To**: ${destination.name}
-• **Direct Distance (Range)**: ${distanceKm.toStringAsFixed(2)} km (${(distanceKm * 0.621371).toStringAsFixed(2)} miles)
-• **Estimated Travel Time**: ~$durationMinutes min by ${mode.label}
-
-💡 **AI Guide Insights**:
-${modeTips[mode] ?? 'Safe travels!'}
-• Check weather conditions before departure.
-• Best time to avoid rush congestion is mid-morning or early afternoon.
-• Landmarks to look for on your journey to ${destination.name}: scenic downtown crossings and local neighborhood hubs.''';
+    return _generateLocalAiAdvice(
+      origin: origin,
+      destination: destination,
+      distanceKm: distanceKm,
+      durationMinutes: durationMinutes,
+      mode: mode,
+    );
   }
 }

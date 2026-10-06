@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/api_constants.dart';
 import '../../models/map_route.dart';
 import '../../services/map_service.dart';
 import '../../services/user_location_service.dart';
@@ -28,7 +29,59 @@ class MapGuideScreenState extends State<MapGuideScreen> {
   TravelMode _selectedMode = TravelMode.driving;
   RouteResult? _currentRoute;
   bool _isLoading = false;
-  String _selectedTileLayer = 'osm'; // 'osm' or 'carto_dark'
+  String _selectedTileLayer = 'google_standard';
+  bool _showTraffic = false;
+
+  String get _currentTileUrl {
+    final keyParam = ApiConstants.googleMapsApiKey.isNotEmpty
+        ? '&key=${ApiConstants.googleMapsApiKey}'
+        : '';
+
+    switch (_selectedTileLayer) {
+      case 'google_standard':
+        return _showTraffic
+            ? 'https://mt{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}$keyParam'
+            : 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}$keyParam';
+
+      case 'google_hybrid':
+        return _showTraffic
+            ? 'https://mt{s}.google.com/vt/lyrs=y,traffic&x={x}&y={y}&z={z}$keyParam'
+            : 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}$keyParam';
+
+      case 'google_satellite':
+        return 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}$keyParam';
+
+      case 'google_terrain':
+        return _showTraffic
+            ? 'https://mt{s}.google.com/vt/lyrs=p,traffic&x={x}&y={y}&z={z}$keyParam'
+            : 'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}$keyParam';
+
+      case 'carto_dark':
+        return 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png';
+
+      case 'osm':
+      default:
+        return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+  }
+
+  String get _layerDisplayName {
+    switch (_selectedTileLayer) {
+      case 'google_standard':
+        return _showTraffic ? 'Google Maps (Traffic)' : 'Google Maps';
+      case 'google_hybrid':
+        return _showTraffic ? 'Google Hybrid (Traffic)' : 'Google Hybrid';
+      case 'google_satellite':
+        return 'Google Satellite';
+      case 'google_terrain':
+        return _showTraffic ? 'Google Terrain (Traffic)' : 'Google Terrain';
+      case 'carto_dark':
+        return 'Dark Mode';
+      case 'osm':
+      default:
+        return 'OpenStreetMap';
+    }
+  }
 
   final List<Map<String, String>> _cambodiaQuickDestinations = [
     {'name': 'Siem Reap', 'label': 'Siem Reap'},
@@ -200,6 +253,19 @@ class MapGuideScreenState extends State<MapGuideScreen> {
   Future<void> navigateToDestinationName(String placeName) async {
     _searchController.text = placeName;
     await _onSearchSubmit(placeName);
+  }
+
+  void _onSelectTravelMode(TravelMode mode) {
+    if (_selectedMode == mode) return;
+
+    setState(() {
+      _selectedMode = mode;
+      if (_currentRoute != null) {
+        _currentRoute = _mapService.recalculateForMode(_currentRoute!, mode);
+      }
+    });
+
+    _calculateRoute();
   }
 
   Future<void> _calculateRoute({String? customPrompt}) async {
@@ -508,6 +574,7 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                       _mapService.openGoogleMapsDirections(
                         origin: _origin.coordinates,
                         destination: _destination.coordinates,
+                        mode: _selectedMode,
                       );
                     },
                   ),
@@ -555,6 +622,263 @@ class MapGuideScreenState extends State<MapGuideScreen> {
     );
   }
 
+  void _showMapLayersBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade600,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.layers_rounded, color: Colors.cyanAccent, size: 22),
+                            SizedBox(width: 8),
+                            Text(
+                              'Google Map Layers',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Section: Map Types
+                    const Text(
+                      'MAP TYPE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _buildLayerTypeOption(
+                          label: 'Default',
+                          icon: Icons.map_outlined,
+                          isSelected: _selectedTileLayer == 'google_standard',
+                          onTap: () {
+                            setState(() => _selectedTileLayer = 'google_standard');
+                            setSheetState(() {});
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildLayerTypeOption(
+                          label: 'Hybrid',
+                          icon: Icons.travel_explore_rounded,
+                          isSelected: _selectedTileLayer == 'google_hybrid',
+                          onTap: () {
+                            setState(() => _selectedTileLayer = 'google_hybrid');
+                            setSheetState(() {});
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildLayerTypeOption(
+                          label: 'Satellite',
+                          icon: Icons.satellite_alt_rounded,
+                          isSelected: _selectedTileLayer == 'google_satellite',
+                          onTap: () {
+                            setState(() => _selectedTileLayer = 'google_satellite');
+                            setSheetState(() {});
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildLayerTypeOption(
+                          label: 'Terrain',
+                          icon: Icons.terrain_rounded,
+                          isSelected: _selectedTileLayer == 'google_terrain',
+                          onTap: () {
+                            setState(() => _selectedTileLayer = 'google_terrain');
+                            setSheetState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section: Map Details & Overlays
+                    const Text(
+                      'MAP DETAILS & OVERLAYS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Live Traffic Toggle
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceDark,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _showTraffic
+                              ? Colors.greenAccent.withValues(alpha: 0.6)
+                              : AppTheme.borderDark,
+                        ),
+                      ),
+                      child: SwitchListTile(
+                        value: _showTraffic,
+                        onChanged: (val) {
+                          setState(() => _showTraffic = val);
+                          setSheetState(() {});
+                        },
+                        secondary: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.traffic_rounded, color: Colors.greenAccent, size: 22),
+                        ),
+                        title: const Text(
+                          'Live Traffic Conditions',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        subtitle: const Text(
+                          'Real-time green/orange/red traffic flow on roads',
+                          style: TextStyle(color: Colors.grey, fontSize: 11),
+                        ),
+                        activeThumbColor: Colors.greenAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Other styles row (Dark Mode & OpenStreetMap)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _selectedTileLayer == 'carto_dark' ? Colors.cyanAccent : Colors.grey,
+                              side: BorderSide(
+                                color: _selectedTileLayer == 'carto_dark' ? Colors.cyanAccent : AppTheme.borderDark,
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            icon: const Icon(Icons.dark_mode_outlined, size: 16),
+                            label: const Text('Dark Mode', style: TextStyle(fontSize: 12)),
+                            onPressed: () {
+                              setState(() => _selectedTileLayer = 'carto_dark');
+                              setSheetState(() {});
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _selectedTileLayer == 'osm' ? Colors.cyanAccent : Colors.grey,
+                              side: BorderSide(
+                                color: _selectedTileLayer == 'osm' ? Colors.cyanAccent : AppTheme.borderDark,
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            icon: const Icon(Icons.public_rounded, size: 16),
+                            label: const Text('OpenStreetMap', style: TextStyle(fontSize: 12)),
+                            onPressed: () {
+                              setState(() => _selectedTileLayer = 'osm');
+                              setSheetState(() {});
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLayerTypeOption({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                : AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF10B981) : AppTheme.borderDark,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? const Color(0xFF10B981) : Colors.white70,
+                size: 24,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMetricTile({
     required IconData icon,
     required String title,
@@ -590,10 +914,6 @@ class MapGuideScreenState extends State<MapGuideScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tileUrl = _selectedTileLayer == 'osm'
-        ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-        : 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
-
     return Stack(
       children: [
         // 1. The Interactive Map
@@ -606,8 +926,10 @@ class MapGuideScreenState extends State<MapGuideScreen> {
           ),
           children: [
             TileLayer(
-              urlTemplate: tileUrl,
+              urlTemplate: _currentTileUrl,
+              subdomains: const ['0', '1', '2', '3'],
               userAgentPackageName: 'com.example.ai_app',
+              maxZoom: 20,
             ),
             if (_currentRoute != null && _currentRoute!.polylinePoints.isNotEmpty)
               PolylineLayer(
@@ -898,13 +1220,20 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                         }
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
-                          child: FilterChip(
+                          child: ChoiceChip(
                             label: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey),
                                 const SizedBox(width: 4),
-                                Text(mode.label, style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontSize: 12)),
+                                Text(
+                                  mode.label,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.grey,
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
                               ],
                             ),
                             selected: isSelected,
@@ -912,8 +1241,7 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                             backgroundColor: AppTheme.cardDark.withValues(alpha: 0.9),
                             onSelected: (val) {
                               if (val) {
-                                setState(() => _selectedMode = mode);
-                                _calculateRoute();
+                                _onSelectTravelMode(mode);
                               }
                             },
                           ),
@@ -1014,15 +1342,11 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                   onPressed: _fitRouteBounds,
                 ),
                 const Divider(color: Colors.white12, height: 1),
-                // 3. Layer Toggle (Street / Dark)
+                // 3. Layer Selector (Google Maps Standard, Hybrid, Satellite, Terrain, Traffic, Dark, OSM)
                 IconButton(
                   icon: const Icon(Icons.layers_rounded, color: Colors.cyanAccent, size: 20),
-                  tooltip: 'Toggle Map Layer',
-                  onPressed: () {
-                    setState(() {
-                      _selectedTileLayer = _selectedTileLayer == 'osm' ? 'carto_dark' : 'osm';
-                    });
-                  },
+                  tooltip: 'Google Map Layers & Traffic',
+                  onPressed: _showMapLayersBottomSheet,
                 ),
                 const Divider(color: Colors.white12, height: 1),
                 // 4. Zoom In
@@ -1045,6 +1369,72 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                   },
                 ),
               ],
+            ),
+          ),
+        ),
+
+        // Floating Active Layer Indicator Badge (tap to change layer)
+        Positioned(
+          left: 14,
+          bottom: _currentRoute != null ? 180 : 28,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _showMapLayersBottomSheet,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardDark.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _selectedTileLayer.startsWith('google')
+                        ? Colors.cyanAccent.withValues(alpha: 0.5)
+                        : Colors.white24,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _selectedTileLayer.startsWith('google') ? Icons.map_rounded : Icons.layers_outlined,
+                      size: 14,
+                      color: Colors.cyanAccent,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _layerDisplayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (_showTraffic && _selectedTileLayer.startsWith('google')) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'TRAFFIC',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1181,6 +1571,7 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                           _mapService.openGoogleMapsDirections(
                             origin: _origin.coordinates,
                             destination: _destination.coordinates,
+                            mode: _selectedMode,
                           );
                         },
                         child: const Row(

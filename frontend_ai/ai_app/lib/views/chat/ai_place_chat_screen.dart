@@ -7,8 +7,15 @@ import '../../services/user_location_service.dart';
 
 class AiPlaceChatScreen extends StatefulWidget {
   final Function(String query)? onNavigateToMap;
+  final VoidCallback? onOpenMenu;
+  final VoidCallback? onOpenSettings;
 
-  const AiPlaceChatScreen({super.key, this.onNavigateToMap});
+  const AiPlaceChatScreen({
+    super.key,
+    this.onNavigateToMap,
+    this.onOpenMenu,
+    this.onOpenSettings,
+  });
 
   @override
   State<AiPlaceChatScreen> createState() => _AiPlaceChatScreenState();
@@ -298,6 +305,96 @@ Here is my recommendation for "$query":
       bottom: false,
       child: Column(
       children: [
+        // Top Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: widget.onOpenMenu ?? widget.onOpenSettings,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.cardDark : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? AppTheme.borderDark : const Color(0xFFE5E9E4),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.sort_rounded,
+                    color: isDark ? AppTheme.accentMint : AppTheme.primaryColor,
+                    size: 22,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppTheme.primaryLight.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.auto_awesome, size: 15, color: AppTheme.primaryColor),
+                    SizedBox(width: 6),
+                    Text(
+                      'Cambodia AI Guide',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: widget.onOpenSettings,
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.primaryLight,
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, stack) => const Icon(
+                        Icons.person,
+                        color: AppTheme.primaryLight,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
         // Suggested Questions Header (Cambodia Focused)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -26,6 +26,27 @@ enum TravelMode {
         return 'Cycle';
     }
   }
+
+  String get googleMode {
+    switch (this) {
+      case TravelMode.driving:
+        return 'driving';
+      case TravelMode.walking:
+        return 'walking';
+      case TravelMode.cycling:
+        return 'bicycling';
+    }
+  }
+}
+
+class ModeMetrics {
+  final double distanceMeters;
+  final double durationSeconds;
+
+  const ModeMetrics({
+    required this.distanceMeters,
+    required this.durationSeconds,
+  });
 }
 
 class PlaceLocation {
@@ -83,6 +104,7 @@ class RouteResult {
   final List<RouteStep> steps;
   final TravelMode travelMode;
   final String aiGuideNotes;
+  final double baseRoadDistanceMeters;
 
   RouteResult({
     required this.origin,
@@ -93,9 +115,10 @@ class RouteResult {
     required this.steps,
     required this.travelMode,
     required this.aiGuideNotes,
-  });
+    double? baseRoadDistanceMeters,
+  }) : baseRoadDistanceMeters = baseRoadDistanceMeters ?? distanceMeters;
 
-  double get distanceKm => distanceMeters / 1000;
+  double get distanceKm => distanceMeters / 1000.0;
   double get distanceMiles => distanceMeters * 0.000621371;
 
   String get formattedDistance {
@@ -106,12 +129,20 @@ class RouteResult {
   }
 
   String get formattedDuration {
-    final minutes = (durationSeconds / 60).round();
+    final minutes = (durationSeconds / 60.0).round();
     if (minutes < 60) {
       return '$minutes mins';
     }
     final hours = minutes ~/ 60;
     final remMins = minutes % 60;
+    if (hours >= 24) {
+      final days = hours ~/ 24;
+      final remHours = hours % 24;
+      if (remHours == 0) {
+        return '${days}d ($hours hrs)';
+      }
+      return '${days}d ${remHours}h ($hours hrs)';
+    }
     return '${hours}h ${remMins}m';
   }
 }

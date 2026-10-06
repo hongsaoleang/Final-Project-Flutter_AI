@@ -34,7 +34,7 @@ class MessageBubble extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  isUser ? 'You' : 'MyAI (${message.mode.title})',
+                  isUser ? 'You' : 'DER LENG (${message.mode.title})',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,

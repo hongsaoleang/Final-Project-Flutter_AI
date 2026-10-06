@@ -48,7 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'MyAI',
+                  'DER LENG',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -206,24 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: 'Live GPS + Google Maps Sync',
                   isDark: isDark,
                 ),
-                const Divider(height: 20),
-                _buildInfoTile(
-                  icon: Icons.eco_rounded,
-                  title: 'Edition',
-                  value: 'Eco Travel Planner v2.4.0',
-                  isDark: isDark,
-                ),
               ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          Center(
-            child: Text(
-              'Designed for Mobile & Web • Made for Travelers in Cambodia',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.white38 : Colors.black38,
-              ),
             ),
           ),
         ],

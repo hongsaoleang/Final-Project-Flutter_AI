@@ -186,7 +186,7 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                 SizedBox(width: 8),
-                Text('MyAI is thinking...', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('DER LENG is thinking...', style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
@@ -276,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: const Icon(Icons.auto_awesome, size: 48, color: AppTheme.primaryLight),
           ),
           const SizedBox(height: 16),
-          const Text('MyAI Multimodal Assistant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('DER LENG Multimodal Assistant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           const Text('Select an AI mode above and start chatting.', style: TextStyle(fontSize: 13, color: Colors.grey)),
         ],

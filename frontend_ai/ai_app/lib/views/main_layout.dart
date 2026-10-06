@@ -21,7 +21,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _navigateToMapWithPlace(String placeName) {
     setState(() {
-      _selectedIndex = 1; // Switch to Map Guide tab
+      _selectedIndex = 2; // Switch to Map Guide tab
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _mapGuideKey.currentState?.navigateToDestinationName(placeName);
@@ -59,15 +59,19 @@ class _MainLayoutState extends State<MainLayout> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final screens = [
+      AiPlaceChatScreen(
+        onNavigateToMap: _navigateToMapWithPlace,
+        onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+        onOpenSettings: () => setState(() => _selectedIndex = 3),
+      ),
       HomeExploreDashboard(
         onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
         onOpenSettings: () => setState(() => _selectedIndex = 3),
         onOpenItinerary: _openItineraryScreen,
         onSearchDestination: _navigateToMapWithPlace,
-        onOpenAiGuide: () => setState(() => _selectedIndex = 2),
+        onOpenAiGuide: () => setState(() => _selectedIndex = 0),
       ),
       MapGuideScreen(key: _mapGuideKey),
-      AiPlaceChatScreen(onNavigateToMap: _navigateToMapWithPlace),
       const SettingsScreen(),
     ];
 
@@ -102,7 +106,7 @@ class _MainLayoutState extends State<MainLayout> {
                     const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('MyAI Travel', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('DER LENG', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         Text('Cambodia Eco Edition', style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
@@ -111,8 +115,8 @@ class _MainLayoutState extends State<MainLayout> {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.explore_outlined),
-                title: const Text('Explore'),
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('AI Guide'),
                 selected: _selectedIndex == 0,
                 selectedColor: AppTheme.primaryLight,
                 onTap: () {
@@ -121,8 +125,8 @@ class _MainLayoutState extends State<MainLayout> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.map_outlined),
-                title: const Text('Map'),
+                leading: const Icon(Icons.explore_outlined),
+                title: const Text('Explore'),
                 selected: _selectedIndex == 1,
                 selectedColor: AppTheme.primaryLight,
                 onTap: () {
@@ -131,8 +135,8 @@ class _MainLayoutState extends State<MainLayout> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.auto_awesome_outlined),
-                title: const Text('AI Guide'),
+                leading: const Icon(Icons.map_outlined),
+                title: const Text('Map'),
                 selected: _selectedIndex == 2,
                 selectedColor: AppTheme.primaryLight,
                 onTap: () {
@@ -184,6 +188,11 @@ class _MainLayoutState extends State<MainLayout> {
         onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
         destinations: const [
           NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome, color: AppTheme.primaryLight),
+            label: 'AI Guide',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.explore_outlined),
             selectedIcon: Icon(Icons.explore, color: AppTheme.primaryLight),
             label: 'Explore',
@@ -192,11 +201,6 @@ class _MainLayoutState extends State<MainLayout> {
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map, color: AppTheme.primaryLight),
             label: 'Map',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome, color: AppTheme.primaryLight),
-            label: 'AI Guide',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
