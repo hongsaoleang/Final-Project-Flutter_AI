@@ -301,10 +301,12 @@ Here is my recommendation for "$query":
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SafeArea(
-      bottom: false,
-      child: Column(
-      children: [
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
         // Top Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -346,6 +348,7 @@ Here is my recommendation for "$query":
                   ),
                 ),
                 child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.auto_awesome, size: 15, color: AppTheme.primaryColor),
                     SizedBox(width: 6),
@@ -620,7 +623,8 @@ Here is my recommendation for "$query":
         ),
       ],
     ),
-  );
+  ),
+);
 }
 
   Widget _buildPromptChip(String text, bool isDark) {

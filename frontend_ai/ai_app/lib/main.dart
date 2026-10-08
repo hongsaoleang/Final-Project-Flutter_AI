@@ -1,4 +1,3 @@
-import 'package:ai_app/views/chat/ai_place_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'views/main_layout.dart';
@@ -21,7 +20,7 @@ class MyAIApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: currentMode,
-          home:  AiPlaceChatScreen(),
+          home: const MainLayout(),
         );
       },
     );
