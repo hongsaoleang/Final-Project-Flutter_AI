@@ -148,16 +148,22 @@ class _ItineraryDetailsScreenState extends State<ItineraryDetailsScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Row(
-                              children: [
-                                Text(
-                                  'Cambodia Discovery',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(Icons.edit_outlined, size: 18, color: AppTheme.primaryLight),
-                              ],
+                            const Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'Cambodia Discovery',
+                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.edit_outlined, size: 18, color: AppTheme.primaryLight),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             // Participant Avatars
                             SizedBox(
                               width: 60,
@@ -292,11 +298,11 @@ class _ItineraryDetailsScreenState extends State<ItineraryDetailsScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildMetricItem(title: 'Road Range', value: '314 km', icon: Icons.straighten_rounded),
+                            Expanded(child: _buildMetricItem(title: 'Road Range', value: '314 km', icon: Icons.straighten_rounded)),
                             Container(width: 1, height: 28, color: Colors.grey.withValues(alpha: 0.3)),
-                            _buildMetricItem(title: 'Bus/Taxi', value: '~\$18 - \$45', icon: Icons.payments_outlined),
+                            Expanded(child: _buildMetricItem(title: 'Bus/Taxi', value: '~\$18 - \$45', icon: Icons.payments_outlined)),
                             Container(width: 1, height: 28, color: Colors.grey.withValues(alpha: 0.3)),
-                            _buildMetricItem(title: 'Via Expressway', value: 'National R6', icon: Icons.navigation_outlined, highlight: true),
+                            Expanded(child: _buildMetricItem(title: 'Via Expressway', value: 'National R6', icon: Icons.navigation_outlined, highlight: true)),
                           ],
                         ),
                       ],

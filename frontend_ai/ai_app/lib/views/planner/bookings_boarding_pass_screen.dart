@@ -379,21 +379,27 @@ class _BookingsBoardingPassScreenState extends State<BookingsBoardingPassScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.flight_takeoff_rounded, color: AppTheme.primaryLight, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'CAMBODIA ANGKOR AIR',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                        color: isDark ? AppTheme.accentMint : AppTheme.primaryColor,
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flight_takeoff_rounded, color: AppTheme.primaryLight, size: 20),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'CAMBODIA ANGKOR AIR',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                            color: isDark ? AppTheme.accentMint : AppTheme.primaryColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -415,35 +421,42 @@ class _BookingsBoardingPassScreenState extends State<BookingsBoardingPassScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('PNH', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                    SizedBox(height: 2),
-                    Text('Phnom Penh', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    SizedBox(height: 4),
-                    Text('08:30 AM', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  ],
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('PNH', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                      SizedBox(height: 2),
+                      Text('Phnom Penh', style: TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
+                      SizedBox(height: 4),
+                      Text('08:30 AM', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
-                Column(
-                  children: [
-                    const Icon(Icons.flight_rounded, color: AppTheme.primaryLight, size: 24),
-                    const SizedBox(height: 4),
-                    Text(
-                      '45 mins • Direct',
-                      style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                    ),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.flight_rounded, color: AppTheme.primaryLight, size: 24),
+                      const SizedBox(height: 4),
+                      Text(
+                        '45 mins • Direct',
+                        style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
                 ),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('SAI', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                    SizedBox(height: 2),
-                    Text('Siem Reap (Angkor)', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    SizedBox(height: 4),
-                    Text('09:15 AM', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  ],
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('SAI', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                      SizedBox(height: 2),
+                      Text('Siem Reap (Angkor)', style: TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis, textAlign: TextAlign.end),
+                      SizedBox(height: 4),
+                      Text('09:15 AM', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
               ],
             ),

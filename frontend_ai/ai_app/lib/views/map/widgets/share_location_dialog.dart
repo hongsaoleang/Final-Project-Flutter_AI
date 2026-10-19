@@ -97,10 +97,11 @@ class _ShareLocationDialogState extends State<ShareLocationDialog> {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 480),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Header
             Row(
               children: [
@@ -316,6 +317,7 @@ class _ShareLocationDialogState extends State<ShareLocationDialog> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

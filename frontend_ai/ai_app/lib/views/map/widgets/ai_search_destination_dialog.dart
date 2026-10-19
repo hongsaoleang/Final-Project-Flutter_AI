@@ -83,10 +83,11 @@ class _AiSearchDestinationDialogState extends State<AiSearchDestinationDialog> {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 520),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Header
             Row(
               children: [
@@ -230,6 +231,7 @@ class _AiSearchDestinationDialogState extends State<AiSearchDestinationDialog> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

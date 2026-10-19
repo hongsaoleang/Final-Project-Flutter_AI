@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -97,6 +98,8 @@ class MapGuideScreenState extends State<MapGuideScreen> {
     {'name': 'Preah Vihear Temple', 'label': 'Preah Vihear'},
   ];
 
+  bool _isFollowingUser = false;
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +116,13 @@ class MapGuideScreenState extends State<MapGuideScreen> {
       ),
     );
     _calculateRoute();
+
+    // Auto-detect and connect live phone GPS on startup for mobile devices
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+        _detectAndCenterGps(silent: true);
+      }
+    });
   }
 
   @override
@@ -123,9 +133,22 @@ class MapGuideScreenState extends State<MapGuideScreen> {
   }
 
   void _onLocationServiceUpdate() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) return;
+
+    if (_userLocService.isGpsActive && _userLocService.currentGpsPosition != null) {
+      final pos = _userLocService.currentGpsPosition!;
+      final newCoords = LatLng(pos.latitude, pos.longitude);
+
+      if (_isFollowingUser) {
+        _mapController.move(newCoords, _mapController.camera.zoom);
+      }
+
+      if (_origin.type == 'gps') {
+        _origin = _userLocService.effectiveOrigin;
+      }
     }
+
+    setState(() {});
   }
 
   void _openShareLocationDialog() {
@@ -143,25 +166,33 @@ class MapGuideScreenState extends State<MapGuideScreen> {
     );
   }
 
-  Future<void> _detectAndCenterGps() async {
+  Future<void> _detectAndCenterGps({bool silent = false}) async {
     setState(() => _isLoading = true);
-    final pos = await _userLocService.fetchCurrentGpsPosition();
+    final res = await _userLocService.startLiveLocationTracking(continuous: true);
     setState(() => _isLoading = false);
 
-    if (pos != null) {
+    if (res.success && res.position != null) {
+      final pos = res.position!;
+      final gpsCoords = LatLng(pos.latitude, pos.longitude);
       setState(() {
         _origin = _userLocService.effectiveOrigin;
+        _isFollowingUser = true;
       });
-      _mapController.move(LatLng(pos.latitude, pos.longitude), 14.5);
+      _mapController.move(gpsCoords, 15.0);
       _calculateRoute(customPrompt: 'Guiding from user live GPS location to ${_destination.name}');
-      if (mounted) {
+      if (mounted && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.gps_fixed, color: Colors.greenAccent, size: 20),
                 const SizedBox(width: 8),
-                Text('Locked on Live GPS: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}'),
+                Expanded(
+                  child: Text(
+                    'Live GPS Active! Accuracy: ${pos.accuracy.toStringAsFixed(0)}m',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             backgroundColor: AppTheme.cardDark,
@@ -169,16 +200,102 @@ class MapGuideScreenState extends State<MapGuideScreen> {
           ),
         );
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not access live GPS. Using ${_userLocService.city} base location.'),
-            backgroundColor: AppTheme.cardDark,
-            behavior: SnackBarBehavior.floating,
+    } else if (!silent) {
+      _showLocationPermissionDialog(res);
+    }
+  }
+
+  void _showLocationPermissionDialog(GpsResult res) {
+    if (!mounted) return;
+
+    if (res.status == GpsStatus.serviceDisabled) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.cardDark,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.location_off_rounded, color: Colors.amberAccent),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Device Location Disabled', style: TextStyle(color: Colors.white, fontSize: 16)),
+              ),
+            ],
           ),
-        );
-      }
+          content: const Text(
+            'GPS / Location Services are currently turned off on your device. Please turn on Location in your phone settings to enable live GPS navigation.',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.settings, size: 16),
+              label: const Text('Open Location Settings'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _userLocService.openLocationSettings();
+              },
+            ),
+          ],
+        ),
+      );
+    } else if (res.status == GpsStatus.permissionDeniedForever) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.cardDark,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: Colors.redAccent),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Location Permission Required', style: TextStyle(color: Colors.white, fontSize: 16)),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Location permission is permanently denied for DER LENG. To see your live location on the map and calculate real-time routes, please enable Location in App Settings.',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.settings_applications, size: 16),
+              label: const Text('Open App Settings'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _userLocService.openAppSettings();
+              },
+            ),
+          ],
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res.message),
+          backgroundColor: AppTheme.cardDark,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -923,6 +1040,11 @@ class MapGuideScreenState extends State<MapGuideScreen> {
             initialCenter: _origin.coordinates,
             initialZoom: 13.0,
             onTap: _onMapTap,
+            onPositionChanged: (camera, hasGesture) {
+              if (hasGesture && _isFollowingUser) {
+                setState(() => _isFollowingUser = false);
+              }
+            },
           ),
           children: [
             TileLayer(
@@ -931,6 +1053,22 @@ class MapGuideScreenState extends State<MapGuideScreen> {
               userAgentPackageName: 'com.example.ai_app',
               maxZoom: 20,
             ),
+            if (_userLocService.isGpsActive && _userLocService.currentGpsPosition != null)
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: LatLng(
+                      _userLocService.currentGpsPosition!.latitude,
+                      _userLocService.currentGpsPosition!.longitude,
+                    ),
+                    radius: (_userLocService.accuracy ?? 25.0).clamp(14.0, 50.0),
+                    useRadiusInMeter: false,
+                    color: const Color(0xFF10B981).withValues(alpha: 0.16),
+                    borderColor: const Color(0xFF10B981).withValues(alpha: 0.5),
+                    borderStrokeWidth: 1.5,
+                  ),
+                ],
+              ),
             if (_currentRoute != null && _currentRoute!.polylinePoints.isNotEmpty)
               PolylineLayer(
                 polylines: [
@@ -953,27 +1091,71 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                 // Origin Pin (adapts to live GPS or base living location)
                 Marker(
                   point: _origin.coordinates,
-                  width: 70,
-                  height: 60,
+                  width: 90,
+                  height: 65,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _userLocService.isGpsActive ? Colors.blue.shade700 : Colors.green.shade700,
+                          color: _userLocService.isGpsActive ? const Color(0xFF059669) : Colors.green.shade700,
                           borderRadius: BorderRadius.circular(6),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
                         ),
-                        child: Text(
-                          _userLocService.isGpsActive ? 'My GPS' : _origin.name,
-                          style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_userLocService.isGpsActive)
+                              Container(
+                                width: 5,
+                                height: 5,
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            Flexible(
+                              child: Text(
+                                _userLocService.isGpsActive
+                                    ? (_userLocService.accuracy != null
+                                        ? 'Live GPS (±${_userLocService.accuracy!.toStringAsFixed(0)}m)'
+                                        : 'Live GPS')
+                                    : _origin.name,
+                                style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Icon(
-                        _userLocService.isGpsActive ? Icons.my_location : Icons.trip_origin,
-                        color: _userLocService.isGpsActive ? Colors.cyanAccent : Colors.greenAccent,
-                        size: 28,
-                      ),
+                      const SizedBox(height: 2),
+                      _userLocService.isGpsActive
+                          ? Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.navigation, color: Colors.white, size: 12),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.trip_origin,
+                              color: Colors.greenAccent,
+                              size: 28,
+                            ),
                     ],
                   ),
                 ),
@@ -1251,22 +1433,36 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: ActionChip(
-                          backgroundColor: _userLocService.isGpsActive ? const Color(0xFF1B4332) : AppTheme.cardDark.withValues(alpha: 0.95),
+                          backgroundColor: _userLocService.isGpsActive
+                              ? (_isFollowingUser ? const Color(0xFF0F5132) : const Color(0xFF1B4332))
+                              : AppTheme.cardDark.withValues(alpha: 0.95),
                           side: BorderSide(
-                            color: _userLocService.isGpsActive ? const Color(0xFF10B981) : AppTheme.primaryLight,
+                            color: _userLocService.isGpsActive
+                                ? (_isFollowingUser ? Colors.cyanAccent : const Color(0xFF10B981))
+                                : AppTheme.primaryLight,
                             width: 1.5,
                           ),
                           avatar: Icon(
                             _userLocService.isGpsActive ? Icons.gps_fixed : Icons.my_location,
                             size: 14,
-                            color: const Color(0xFF10B981),
+                            color: _userLocService.isGpsActive
+                                ? (_isFollowingUser ? Colors.cyanAccent : const Color(0xFF10B981))
+                                : AppTheme.primaryLight,
                           ),
                           label: Text(
-                            _userLocService.isGpsActive ? '📍 My Live GPS' : '📍 My Location',
+                            _userLocService.isGpsActive
+                                ? (_isFollowingUser ? '📍 Following GPS' : '📍 My Live GPS')
+                                : '📍 Enable Live GPS',
                             style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                           onPressed: () {
-                            _detectAndCenterGps();
+                            if (_userLocService.isGpsActive && _userLocService.currentPosition != null) {
+                              final pos = _userLocService.currentPosition!;
+                              setState(() => _isFollowingUser = true);
+                              _mapController.move(LatLng(pos.latitude, pos.longitude), 15.5);
+                            } else {
+                              _detectAndCenterGps();
+                            }
                           },
                         ),
                       ),
@@ -1316,9 +1512,19 @@ class MapGuideScreenState extends State<MapGuideScreen> {
             decoration: BoxDecoration(
               color: AppTheme.cardDark.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
-              boxShadow: const [
-                BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4)),
+              border: Border.all(
+                color: _userLocService.isGpsActive && _isFollowingUser
+                    ? Colors.cyanAccent.withValues(alpha: 0.6)
+                    : Colors.white12,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _userLocService.isGpsActive && _isFollowingUser
+                      ? Colors.cyanAccent.withValues(alpha: 0.2)
+                      : Colors.black38,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Column(
@@ -1328,11 +1534,23 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                 IconButton(
                   icon: Icon(
                     _userLocService.isGpsActive ? Icons.gps_fixed : Icons.my_location,
-                    color: _userLocService.isGpsActive ? Colors.greenAccent : AppTheme.primaryLight,
+                    color: _userLocService.isGpsActive
+                        ? (_isFollowingUser ? Colors.cyanAccent : Colors.greenAccent)
+                        : AppTheme.primaryLight,
                     size: 20,
                   ),
-                  tooltip: 'Locate with Live GPS',
-                  onPressed: _detectAndCenterGps,
+                  tooltip: _isFollowingUser && _userLocService.isGpsActive
+                      ? 'Following Live Location (Locked)'
+                      : 'Center on Live Location',
+                  onPressed: () {
+                    if (_userLocService.isGpsActive && _userLocService.currentPosition != null) {
+                      final pos = _userLocService.currentPosition!;
+                      setState(() => _isFollowingUser = true);
+                      _mapController.move(LatLng(pos.latitude, pos.longitude), 15.5);
+                    } else {
+                      _detectAndCenterGps();
+                    }
+                  },
                 ),
                 const Divider(color: Colors.white12, height: 1),
                 // 2. Recenter / Fit Route Bounds Button
@@ -1494,96 +1712,99 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                   const Divider(color: Colors.white10, height: 14),
 
                   // Distance, Duration & Quick Navigation Buttons (Responsive for Mobile)
-                  Row(
-                    children: [
-                      // Distance badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        // Distance badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.straighten, size: 13, color: Colors.cyanAccent),
+                              const SizedBox(width: 4),
+                              Text(
+                                _currentRoute!.formattedDistance,
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 11),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.straighten, size: 13, color: Colors.cyanAccent),
-                            const SizedBox(width: 4),
-                            Text(
-                              _currentRoute!.formattedDistance,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 11),
-                            ),
-                          ],
+                        const SizedBox(width: 6),
+                        // Duration badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.schedule, size: 13, color: Colors.amberAccent),
+                              const SizedBox(width: 4),
+                              Text(
+                                _currentRoute!.formattedDuration,
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent, fontSize: 11),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Duration badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
+                        const SizedBox(width: 12),
+                        // AI Guide button
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: _showGuidanceDetailsModal,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.assistant_navigation, size: 13),
+                              SizedBox(width: 4),
+                              Text('Guide', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.schedule, size: 13, color: Colors.amberAccent),
-                            const SizedBox(width: 4),
-                            Text(
-                              _currentRoute!.formattedDuration,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent, fontSize: 11),
-                            ),
-                          ],
+                        const SizedBox(width: 6),
+                        // Google Maps button
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A73E8),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () {
+                            _mapService.openGoogleMapsDirections(
+                              origin: _origin.coordinates,
+                              destination: _destination.coordinates,
+                              mode: _selectedMode,
+                            );
+                          },
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.navigation_rounded, size: 13, color: Colors.white),
+                              SizedBox(width: 4),
+                              Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      // AI Guide button
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: _showGuidanceDetailsModal,
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.assistant_navigation, size: 13),
-                            SizedBox(width: 4),
-                            Text('Guide', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Google Maps button
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A73E8),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () {
-                          _mapService.openGoogleMapsDirections(
-                            origin: _origin.coordinates,
-                            destination: _destination.coordinates,
-                            mode: _selectedMode,
-                          );
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.navigation_rounded, size: 13, color: Colors.white),
-                            SizedBox(width: 4),
-                            Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

@@ -3,11 +3,11 @@ import 'core/theme/app_theme.dart';
 import 'views/main_layout.dart';
 
 void main() {
-  runApp(const MyAIApp());
+  runApp(const DerLengApp());
 }
 
-class MyAIApp extends StatelessWidget {
-  const MyAIApp({super.key});
+class DerLengApp extends StatelessWidget {
+  const DerLengApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class MyAIApp extends StatelessWidget {
       valueListenable: AppTheme.themeNotifier,
       builder: (context, currentMode, _) {
         return MaterialApp(
-          title: 'MyAI Platform',
+          title: 'DER LENG',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,

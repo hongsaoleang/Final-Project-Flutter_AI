@@ -28,8 +28,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from training.trainer import start_training_job, get_job, run_inference
 
 app = FastAPI(
-    title="MyAI - AI Orchestrator API",
-    description="Multimodal AI service powering MyAI platform",
+    title="DER LENG - AI & Travel API",
+    description="Multimodal AI & Travel Guide service powering DER LENG platform",
     version="0.2.0"
 )
 
@@ -82,8 +82,8 @@ def query_gemini(prompt: str, system_prompt: str = "") -> Optional[str]:
     if not api_key:
         return None
 
-    # Try supported flash models in order
-    models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash"]
+    # Try supported fast flash-lite models in order (responsive in ~2s)
+    models = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash"]
     text_content = f"{system_prompt}\n\nUser Question: {prompt}" if system_prompt else prompt
     body = {
         "contents": [{"parts": [{"text": text_content}]}]
@@ -92,11 +92,15 @@ def query_gemini(prompt: str, system_prompt: str = "") -> Optional[str]:
     for model in models:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-            res = requests.post(url, json=body, timeout=12)
+            res = requests.post(url, json=body, timeout=5)
             if res.status_code == 200:
                 data = res.json()
                 if "candidates" in data and data["candidates"]:
-                    return data["candidates"][0]["content"]["parts"][0]["text"]
+                    candidate = data["candidates"][0]
+                    content = candidate.get("content", {})
+                    parts = content.get("parts", [])
+                    if parts and "text" in parts[0]:
+                        return parts[0]["text"]
             else:
                 print(f"[Gemini {model} Status {res.status_code}]: {res.text}")
         except Exception as e:
@@ -220,8 +224,10 @@ def generate_text(payload: AiRequestPayload):
         raise HTTPException(status_code=400, detail="Prompt is required for text generation.")
 
     system_prompt = (
-        "You are MyAI, a helpful, intelligent, and friendly AI assistant and travel navigation guide. "
-        "Answer whatever the user asks accurately, clearly, and helpfully."
+        "You are MyAI, an intelligent, friendly AI assistant and premier Cambodia Travel & Navigation Guide. "
+        "When answering travel questions about Cambodia or its provinces, always highlight specific iconic places to travel, "
+        "exciting activities & places to play, and recommended hotels & stays. "
+        "For general questions, answer accurately, clearly, and concisely."
     )
 
     # 1. Try OpenAI GPT-4o-Mini if configured and has quota
@@ -233,12 +239,12 @@ def generate_text(payload: AiRequestPayload):
             status="SUCCESS"
         )
 
-    # 2. Try Google Gemini (100% free at aistudio.google.com)
+    # 2. Try Google Gemini Flash-Lite (fast & reliable)
     gemini_res = query_gemini(prompt, system_prompt=system_prompt)
     if gemini_res:
         return AiResponsePayload(
             response=gemini_res,
-            model_used="Google-Gemini-1.5-Flash",
+            model_used="Google-Gemini-Flash-Lite",
             status="SUCCESS"
         )
 

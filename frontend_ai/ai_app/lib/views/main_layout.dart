@@ -57,6 +57,7 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width >= 850;
 
     final screens = [
       AiPlaceChatScreen(
@@ -177,38 +178,100 @@ class _MainLayoutState extends State<MainLayout> {
           ),
         ),
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: Theme.of(context).cardColor,
-        indicatorColor: AppTheme.primaryColor.withValues(alpha: 0.22),
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome, color: AppTheme.primaryLight),
-            label: 'AI Guide',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore, color: AppTheme.primaryLight),
-            label: 'Explore',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map, color: AppTheme.primaryLight),
-            label: 'Map',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings, color: AppTheme.primaryLight),
-            label: 'Setting',
-          ),
-        ],
-      ),
+      body: isWide
+          ? Row(
+              children: [
+                NavigationRail(
+                  backgroundColor: Theme.of(context).cardColor,
+                  indicatorColor: AppTheme.primaryColor.withValues(alpha: 0.22),
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
+                  labelType: NavigationRailLabelType.all,
+                  leading: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.primaryLight, width: 2),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/images/logo.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, stack) => const Icon(Icons.eco, color: AppTheme.primaryLight),
+                        ),
+                      ),
+                    ),
+                  ),
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.auto_awesome_outlined),
+                      selectedIcon: Icon(Icons.auto_awesome, color: AppTheme.primaryLight),
+                      label: Text('AI Guide'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.explore_outlined),
+                      selectedIcon: Icon(Icons.explore, color: AppTheme.primaryLight),
+                      label: Text('Explore'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.map_outlined),
+                      selectedIcon: Icon(Icons.map, color: AppTheme.primaryLight),
+                      label: Text('Map'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      selectedIcon: Icon(Icons.settings, color: AppTheme.primaryLight),
+                      label: Text('Setting'),
+                    ),
+                  ],
+                ),
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: screens,
+                  ),
+                ),
+              ],
+            )
+          : IndexedStack(
+              index: _selectedIndex,
+              children: screens,
+            ),
+      bottomNavigationBar: isWide
+          ? null
+          : NavigationBar(
+              backgroundColor: Theme.of(context).cardColor,
+              indicatorColor: AppTheme.primaryColor.withValues(alpha: 0.22),
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.auto_awesome_outlined),
+                  selectedIcon: Icon(Icons.auto_awesome, color: AppTheme.primaryLight),
+                  label: 'AI Guide',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.explore_outlined),
+                  selectedIcon: Icon(Icons.explore, color: AppTheme.primaryLight),
+                  label: 'Explore',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.map_outlined),
+                  selectedIcon: Icon(Icons.map, color: AppTheme.primaryLight),
+                  label: 'Map',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings, color: AppTheme.primaryLight),
+                  label: 'Setting',
+                ),
+              ],
+            ),
     );
   }
 }

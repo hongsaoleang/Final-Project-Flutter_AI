@@ -434,9 +434,12 @@ class _PlaceScannerScreenState extends State<PlaceScannerScreen> with SingleTick
                           children: [
                             const Icon(Icons.straighten, size: 16, color: Colors.cyanAccent),
                             const SizedBox(width: 8),
-                            Text(
-                              'Range: ${_calculatedRangeKm!.toStringAsFixed(1)} km (${(_calculatedRangeKm! * 0.621371).toStringAsFixed(1)} mi) from ${_locService.city}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
+                            Expanded(
+                              child: Text(
+                                'Range: ${_calculatedRangeKm!.toStringAsFixed(1)} km (${(_calculatedRangeKm! * 0.621371).toStringAsFixed(1)} mi) from ${_locService.city}',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -478,7 +481,10 @@ class _PlaceScannerScreenState extends State<PlaceScannerScreen> with SingleTick
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.navigation, size: 18),
-                        label: Text('Navigate to ${_scanResult!['place_name']} on Map'),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Navigate to ${_scanResult!['place_name']} on Map'),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
                           foregroundColor: Colors.white,

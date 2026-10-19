@@ -1,8 +1,33 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/map_route.dart';
 import 'map_service.dart';
+
+enum GpsStatus {
+  idle,
+  locating,
+  active,
+  serviceDisabled,
+  permissionDenied,
+  permissionDeniedForever,
+  error,
+}
+
+class GpsResult {
+  final bool success;
+  final Position? position;
+  final GpsStatus status;
+  final String message;
+
+  const GpsResult({
+    required this.success,
+    this.position,
+    required this.status,
+    required this.message,
+  });
+}
 
 class CityInfo {
   final String name;
@@ -185,12 +210,24 @@ class UserLocationService extends ChangeNotifier {
 
   Position? _currentGpsPosition;
   bool _isGpsActive = false;
+  bool _isLiveTracking = false;
+  GpsStatus _gpsStatus = GpsStatus.idle;
+  StreamSubscription<Position>? _positionStreamSub;
+  double? _heading;
+  double? _speed;
+  double? _accuracy;
 
   String get country => _country;
   String get city => _city;
   PlaceLocation get livingPlace => _livingPlace;
   Position? get currentGpsPosition => _currentGpsPosition;
+  Position? get currentPosition => _currentGpsPosition;
   bool get isGpsActive => _isGpsActive;
+  bool get isLiveTracking => _isLiveTracking;
+  GpsStatus get gpsStatus => _gpsStatus;
+  double? get heading => _heading;
+  double? get speed => _speed;
+  double? get accuracy => _accuracy;
 
   PlaceLocation get effectiveOrigin {
     if (_isGpsActive && _currentGpsPosition != null) {
@@ -204,47 +241,135 @@ class UserLocationService extends ChangeNotifier {
     return _livingPlace;
   }
 
-  /// Request GPS permission and fetch live device coordinates
-  Future<Position?> fetchCurrentGpsPosition() async {
+  void _updateGpsPosition(Position pos) {
+    _currentGpsPosition = pos;
+    _heading = pos.heading;
+    _speed = pos.speed;
+    _accuracy = pos.accuracy;
+    _isGpsActive = true;
+    _gpsStatus = GpsStatus.active;
+    notifyListeners();
+  }
+
+  /// Start live continuous location tracking on the device
+  Future<GpsResult> startLiveLocationTracking({bool continuous = true}) async {
     try {
+      _gpsStatus = GpsStatus.locating;
+      notifyListeners();
+
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        // Location services are not enabled
-        return null;
+        _gpsStatus = GpsStatus.serviceDisabled;
+        notifyListeners();
+        return const GpsResult(
+          success: false,
+          status: GpsStatus.serviceDisabled,
+          message: 'Location services are turned off on your device. Please turn on GPS.',
+        );
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          return null;
+          _gpsStatus = GpsStatus.permissionDenied;
+          notifyListeners();
+          return const GpsResult(
+            success: false,
+            status: GpsStatus.permissionDenied,
+            message: 'Location permission was denied. Please allow location access.',
+          );
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        return null;
+        _gpsStatus = GpsStatus.permissionDeniedForever;
+        notifyListeners();
+        return const GpsResult(
+          success: false,
+          status: GpsStatus.permissionDeniedForever,
+          message: 'Location permission is permanently denied. Please enable it in Settings.',
+        );
       }
 
-      final position = await Geolocator.getCurrentPosition(
+      // Fast initial lock: check last known position first
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        _updateGpsPosition(lastKnown);
+      }
+
+      // Get high-accuracy current position
+      final currentPos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.best,
           timeLimit: Duration(seconds: 10),
         ),
       );
 
-      _currentGpsPosition = position;
-      _isGpsActive = true;
-      notifyListeners();
-      return position;
+      _updateGpsPosition(currentPos);
+
+      // Start continuous stream if requested
+      if (continuous) {
+        await _positionStreamSub?.cancel();
+        const settings = LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 3,
+        );
+        _positionStreamSub = Geolocator.getPositionStream(locationSettings: settings).listen(
+          (pos) {
+            _updateGpsPosition(pos);
+          },
+          onError: (err) {
+            debugPrint('Location stream error: $err');
+          },
+        );
+        _isLiveTracking = true;
+      }
+
+      return GpsResult(
+        success: true,
+        position: currentPos,
+        status: GpsStatus.active,
+        message: 'Live GPS connected! Accuracy: ${currentPos.accuracy.toStringAsFixed(1)}m',
+      );
     } catch (e) {
-      debugPrint('Error getting GPS location: $e');
-      return null;
+      debugPrint('Error starting live location: $e');
+      _gpsStatus = GpsStatus.error;
+      notifyListeners();
+      return GpsResult(
+        success: false,
+        status: GpsStatus.error,
+        message: 'Could not acquire live location: $e',
+      );
     }
   }
 
-  void disableGps() {
-    _isGpsActive = false;
+  /// Single GPS fetch fallback
+  Future<Position?> fetchCurrentGpsPosition() async {
+    final res = await startLiveLocationTracking(continuous: true);
+    return res.position;
+  }
+
+  void stopLiveTracking() {
+    _positionStreamSub?.cancel();
+    _positionStreamSub = null;
+    _isLiveTracking = false;
     notifyListeners();
+  }
+
+  void disableGps() {
+    stopLiveTracking();
+    _isGpsActive = false;
+    _gpsStatus = GpsStatus.idle;
+    notifyListeners();
+  }
+
+  Future<bool> openLocationSettings() async {
+    return await Geolocator.openLocationSettings();
+  }
+
+  Future<bool> openAppSettings() async {
+    return await Geolocator.openAppSettings();
   }
 
   List<String> get popularLandmarksInCity {

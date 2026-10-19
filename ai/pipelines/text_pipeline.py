@@ -124,14 +124,108 @@ class TextGenerationPipeline:
                 "4. 📍 **Location Sharing**: Share your live GPS location or coordinates with friends."
             )
 
-        # Place recommendations & queries
-        if any(w in clean_p for w in ["siem reap", "angkor", "wat phnom", "phnom penh", "kampot", "sihanoukville", "aeon", "beach", "temple", "museum", "market"]):
+        # Specific Place & Travel recommendations with Travel sights, Places to Play, and Recommended Hotels
+        travel_catalog = {
+            "angkor": {
+                "title": "Angkor Wat & Archaeological Park (Siem Reap)",
+                "travel": ["Angkor Wat Central Sanctuary", "Bayon Temple Faces", "Ta Prohm Overgrown Ruins", "Banteay Srei Carvings"],
+                "play": ["Sunrise hot air balloon flight over Angkor", "Quad bike countryside safari", "Phare Cambodian Circus show", "Angkor Zipline eco-adventure"],
+                "hotels": ["Phum Baitang (5★ luxury resort villas)", "Sofitel Angkor Phokeethra Golf & Spa", "Lub d Cambodia Siem Reap (trendy budget boutique)"],
+            },
+            "phnom penh": {
+                "title": "Royal Palace & Riverside Promenade (Phnom Penh)",
+                "travel": ["Royal Palace & Silver Pagoda", "National Museum of Cambodia", "Wat Phnom Hill Sanctuary", "Central Market (Phsar Thmey)"],
+                "play": ["Mekong & Tonle Sap sunset river cruise", "Street food & rooftop craft beer tasting", "Bassac Lane jazz & nightlife tour", "Mekong Islands cycling excursion"],
+                "hotels": ["Rosewood Phnom Penh (5★ ultra-luxury with Sky Bar)", "Plantation Urban Resort & Spa", "Aquarius Hotel & Urban Park"],
+            },
+            "kampot": {
+                "title": "Preah Monivong Bokor National Park & Plateau (Kampot)",
+                "travel": ["Old French Palace & Casino ruins", "Wat Sampov Pram cloud cliff", "Lok Yeay Mao Giant Monument", "Popokvil 2-tier Waterfall"],
+                "play": ["Kayaking the Green Cathedral loop", "Bokor summit downhill cycling", "La Plantation pepper farm tasting & cooking class", "Evening firefly river cruise"],
+                "hotels": ["Thansur Sokha Bokor Hotel (mountaintop luxury)", "Castle Bayview Resort & Spa", "GreenHouse Eco-Lodge (riverfront bungalow)"],
+            },
+            "battambang": {
+                "title": "Norry Bamboo Railway & Bat Caves (Battambang)",
+                "travel": ["Phnom Sampeau Bat Caves & Killing Caves", "Wat Ek Phnom 11th-century ruins", "Colonial Heritage Old Quarter", "Wat Banan temple hill"],
+                "play": ["Riding the famous Norry Bamboo Train", "Watching millions of bats at dusk from cliffside", "Phare Ponleu Selpak arts school circus workshop", "Sompov Mountain mountain-bike trail"],
+                "hotels": ["Bambu Battambang Hotel (boutique colonial)", "Classy Hotel & Spa", "Maisons Wat Kor (authentic Khmer heritage villas)"],
+            },
+            "sihanoukville": {
+                "title": "Saracen Bay Coral Reefs & Koh Rong Sanloem (Preah Sihanouk)",
+                "travel": ["Saracen Bay pristine white-sand beach", "Lazy Beach jungle cove", "Clear Water Bay", "Koh Rong Lighthouse viewpoint"],
+                "play": ["Night swim with bioluminescent plankton", "Coral reef scuba diving & snorkeling safari", "Stand-up paddleboarding across turquoise lagoons", "Jungle trekking to secluded bays"],
+                "hotels": ["The One Resort (Saracen Bay beachfront villas)", "Sol Beach Resort (Khmer-style beachfront)", "Lazy Beach Eco Bungalows"],
+            },
+            "mondulkiri": {
+                "title": "Bou Sra Jungle Cascades & Elephant Valley (Mondulkiri)",
+                "travel": ["Bou Sra double-tier giant waterfall", "Doh Kramom Hill panoramic sunset point", "Sea Forest (Samot Chhoeu) canopy lookout", "Bunong Indigenous Cultural Village"],
+                "play": ["Ethical elephant watching & river washing at Elephant Valley", "Bou Sra gorge canopy zipline adventure", "Coffee plantation tasting tour", "Pine forest dirt biking trails"],
+                "hotels": ["Mayura Hill Resort (luxury hilltop wooden villas)", "Pidoma Resort (infinity pool with jungle valley views)", "Emario Mondulkiri Resort"],
+            },
+            "kep": {
+                "title": "Kep Crab Market & Rabbit Island (Kep)",
+                "travel": ["Famous Seaside Kep Crab Market", "Koh Tonsay (Rabbit Island) crescent beaches", "Kep National Park sunset trail", "Vintage French colonial modernist villas"],
+                "play": ["Savoring fresh fried crab with green Kampot peppercorns", "Longtail boat day trip to Rabbit Island for beach swimming", "Sunset ocean sailing at Kep Sailing Club", "Hiking the 8km Stairway to Heaven jungle circuit"],
+                "hotels": ["Knai Bang Chatt Resort (coastal 5★ barefoot luxury)", "Veranda Natural Resort (hillside wooden eco-treehouses)", "Saravoan Kep Hotel"],
+            },
+            "ratanakiri": {
+                "title": "Yeak Laom Volcanic Crater Lake (Ratanakiri)",
+                "travel": ["Yeak Laom 4,000-year-old emerald volcanic crater lake", "Ka Chanh & Cha Ong jungle waterfalls", "Lumphat Wildlife Sanctuary", "Eisey Patamak Buddha Hilltop"],
+                "play": ["Swimming in pristine 50m-deep volcanic crater water", "Hiking the 3km protected rainforest ring trail", "Gemstone mining village cultural tour", "Ziplining across Ka Chanh waterfalls"],
+                "hotels": ["Yeak Loam Hotel (comfortable lake-adjacent resort)", "Terres Rouges Lodge (charming riverside boutique lodge)", "Ratanakiri Boutique Hotel"],
+            },
+            "preah vihear": {
+                "title": "Preah Vihear Cliff Sanctuary (Preah Vihear)",
+                "travel": ["Prasat Preah Vihear UNESCO 525m Dângrêk cliff temple", "Gopura V ornate stone gates", "Peah Vihear cliff-edge panorama over Cambodia plains"],
+                "play": ["Thrilling 4x4 pickup truck mountain ascent", "Guided archaeological history tour of Khmer Empire architecture", "Cliffside photography at sunrise above cloud sea", "Bird watching in the Dângrêk natural forest reserve"],
+                "hotels": ["Preah Vihear Boutique Hotel (scenic mountain view)", "Sopheak Mongkul Hotel", "Javier Guesthouse (cozy base in Sra'aem)"],
+            },
+        }
+
+        matched_dest = None
+        for key, dest in travel_catalog.items():
+            if key in clean_p:
+                matched_dest = dest
+                break
+
+        if matched_dest:
             return (
-                f"🗺️ AI Travel Insights for '{prompt}':\n\n"
-                "• **Overview**: One of the most sought-after destinations in the region with rich cultural heritage and scenic views.\n"
-                "• **Navigation Tip**: Check the **Map Guide** screen to see the optimal polyline route from your current location or home base with live ETA.\n"
-                "• **Best Time to Visit**: Early mornings (6:00 AM - 9:00 AM) or late afternoons (4:30 PM - 6:30 PM) offer cooler weather and beautiful lighting.\n"
-                "• **Recommended Mode**: Driving or tuk-tuk for city distances; walking for temple and market grounds."
+                f"🗺️ **Well-Known Destination Spotlight**:\n"
+                f"### 📍 {matched_dest['title']}\n\n"
+                f"🏛️ **Must-See Places to Travel & Sights**:\n" +
+                "\n".join([f"  • {item}" for item in matched_dest['travel']]) +
+                f"\n\n🎯 **Exciting Places to Play & Activities**:\n" +
+                "\n".join([f"  • {item}" for item in matched_dest['play']]) +
+                f"\n\n🏨 **Recommended Hotels & Stays**:\n" +
+                "\n".join([f"  • {item}" for item in matched_dest['hotels']]) +
+                f"\n\n💡 *Tip: Switch to the Map tab to view the live GPS route, road distance, and step-by-step navigation directly to this place!*"
+            )
+
+        if any(w in clean_p for w in ["recommend", "hotel", "play", "travel", "place", "where to go", "tourist", "vacation", "trip", "visit", "destination"]):
+            return (
+                "🗺️ **Cambodia Well-Known Travel Recommendations**:\n\n"
+                "Here are top-tier specific destinations with places to travel, play, and stay:\n\n"
+                "1. 🏛️ **Angkor Wat & Archaeological Park (Siem Reap)**\n"
+                "   • *Travel*: Angkor Wat Sanctuary, Bayon Face Towers, Ta Prohm Ruins\n"
+                "   • *Play*: Sunrise hot air balloon, quad bike countryside safari, Phare Circus\n"
+                "   • *Stay*: Phum Baitang (5★ luxury), Sofitel Angkor Golf & Spa, Lub d Siem Reap\n\n"
+                "2. 🏛️ **Preah Monivong Bokor Plateau (Kampot)**\n"
+                "   • *Travel*: Old French Palace ruins, Popokvil waterfall, Lok Yeay Mao Monument\n"
+                "   • *Play*: Green Cathedral river kayaking, downhill mountain biking, pepper farm tasting\n"
+                "   • *Stay*: Thansur Sokha Bokor Hotel, GreenHouse Eco-Lodge, Castle Bayview\n\n"
+                "3. 🏛️ **Saracen Bay & Koh Rong Sanloem (Preah Sihanouk)**\n"
+                "   • *Travel*: Saracen Bay white sands, Lazy Beach, Coral Reefs\n"
+                "   • *Play*: Night swimming with glowing bioluminescent plankton, coral reef scuba diving\n"
+                "   • *Stay*: The One Resort, Sol Beach Resort, Lazy Beach Eco Bungalows\n\n"
+                "4. 🏛️ **Bou Sra Jungle Cascades (Mondulkiri)**\n"
+                "   • *Travel*: Bou Sra giant double waterfall, Sea Forest canopy, Bunong village\n"
+                "   • *Play*: Ethical elephant washing, gorge canopy zipline, coffee plantation tour\n"
+                "   • *Stay*: Mayura Hill Resort, Pidoma Resort, Emario Resort\n\n"
+                "5. 🏛️ **Norry Bamboo Railway & Bat Caves (Battambang)**\n"
+                "   • *Travel*: Phnom Sampeau Bat Caves, Wat Ek Phnom, Colonial Heritage Quarter\n"
+                "   • *Play*: Norry Bamboo Train ride, dusk bat exodus viewing, Phare circus workshop\n"
+                "   • *Stay*: Bambu Battambang Hotel, Classy Hotel & Spa, Maisons Wat Kor\n\n"
+                "👉 *Ask about any specific landmark or province for in-depth activities, routes, and hotel details!*"
             )
 
         # Route requests like "go to", "guide to", "how to get to"
