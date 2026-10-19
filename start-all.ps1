@@ -2,7 +2,7 @@
 $rootDir = $PSScriptRoot
 
 Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "          Starting MyAI Project Services           " -ForegroundColor Cyan
+Write-Host "          Starting DER LENG Project Services           " -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 
 # 1. Python FastAPI Backend (Port 8000)
