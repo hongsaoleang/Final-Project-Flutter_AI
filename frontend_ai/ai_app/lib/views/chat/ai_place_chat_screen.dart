@@ -34,8 +34,8 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
     super.initState();
     _messages.add(
       ChatMessageModel(
-        sender: 'myai',
-        text: '👋 Suosdei! I am your **Cambodia AI Travel & Route Guide**.\n\nTell me where you want to go or what experience you are looking for in Cambodia! I will recommend popular spots across **Phnom Penh, Siem Reap, Kampot, Kep, Battambang, Mondulkiri, Koh Rong**, and plot the route directly from your location on the map.\n\n💡 Try asking:\n• *"Recommend the best places to visit in Siem Reap"*\n• *"What are common attractions in Phnom Penh?"*\n• *"Take me to Bokor Mountain in Kampot"*\n• *"Tell me about Battambang Bamboo Train"*\n• *"I want to see waterfalls and nature in Mondulkiri"*\n• *"How far is Angkor Wat from Phnom Penh?"*',
+        sender: 'der_leng',
+        text: '👋 Suosdei! I am **DER LENG**, your AI Travel & Navigation Guide in Cambodia.\n\nTell me where you want to go or what experience you are looking for in Cambodia! I will recommend popular spots across **Phnom Penh, Siem Reap, Kampot, Kep, Battambang, Mondulkiri, Koh Rong**, and plot the route directly from your location on the map.\n\n💡 Try asking:\n• *"Recommend the best places to visit in Siem Reap"*\n• *"What are common attractions in Phnom Penh?"*\n• *"Take me to Bokor Mountain in Kampot"*\n• *"Tell me about Battambang Bamboo Train"*\n• *"I want to see waterfalls and nature in Mondulkiri"*\n• *"How far is Angkor Wat from Phnom Penh?"*',
         mode: AiMode.textGeneration,
         timestamp: DateTime.now(),
       ),
@@ -64,6 +64,46 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
       // Check if user is asking for distance / range between two places
       final lower = clean.toLowerCase();
       String responseText = '';
+
+      // Direct handle for user asking for current state or location
+      if (lower.contains('share location') ||
+          lower.contains('my location') ||
+          lower.contains('where am i') ||
+          lower.contains('current state') ||
+          lower.contains('current location') ||
+          lower.contains('my state')) {
+        final loc = UserLocationService();
+        final state = loc.state;
+        final city = loc.city;
+        final country = loc.country;
+        final addr = loc.formattedAddress;
+        final coords = loc.effectiveOrigin.coordinates;
+        final coordsStr = '${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}';
+        final mapsLink = 'https://www.google.com/maps?q=$coordsStr';
+
+        final stateLine = state.isNotEmpty ? '• **State / Region**: $state\n' : '';
+        final cityLine = city.isNotEmpty ? '• **City / Municipality**: $city\n' : '';
+        final addrLine = addr.isNotEmpty ? '• **Address**: $addr\n' : '';
+
+        setState(() {
+          _messages.add(
+            ChatMessageModel(
+              sender: 'myai',
+              text: '''📍 **Your Current State & Location**:
+$stateLine$cityLine• **Country**: $country
+$addrLine• **Coordinates**: `$coordsStr`
+• **Google Maps**: $mapsLink
+
+💡 Tap the **Share Location** chip at the top right to open the system share sheet, or view it on the Live Map!''',
+              mode: AiMode.textGeneration,
+              timestamp: DateTime.now(),
+            ),
+          );
+          _isLoading = false;
+        });
+        _scrollToBottom();
+        return;
+      }
 
       if (lower.contains('distance') || lower.contains('how far') || lower.contains('range')) {
         // Try to parse places
@@ -159,6 +199,7 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
 
     // Common Cambodian landmarks & cities
     final places = [
+      'Prey Veng', 'Krong Prey Veng', 'Ba Phnom', 'Chhrouy Chek',
       'Angkor Wat', 'Bayon Temple', 'Ta Prohm', 'Banteay Srei', 'Phnom Kulen', 'Pub Street', 'Siem Reap',
       'Royal Palace', 'Wat Phnom', 'Central Market', 'Riverside Promenade', 'Tuol Sleng', 'Bassac Lane', 'Phnom Penh',
       'Bokor Mountain', 'Bokor National Park', 'Kampot River', 'Secret Lake', 'Teuk Chhou', 'Kampot',
@@ -170,6 +211,7 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
       'Preah Vihear Temple', 'Preah Vihear',
       'Sambor Prei Kuk', 'Kampong Thom',
       'Bamboo Bridge', 'Koh Pen', 'Kampong Cham',
+      'Kratie', 'Stung Treng', 'Svay Rieng', 'Takeo', 'Pursat',
     ];
 
     for (final p in places) {
@@ -180,7 +222,12 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
 
     // Check prompt cleaner candidate
     final candidate = MapService.extractDestinationFromPrompt(userQuery);
-    if (candidate.isNotEmpty && candidate.toLowerCase() != userQuery.toLowerCase() && candidate.length > 2) {
+    if (candidate.isNotEmpty && candidate.length > 2) {
+      for (final p in places) {
+        if (p.toLowerCase().contains(candidate.toLowerCase()) || candidate.toLowerCase().contains(p.toLowerCase())) {
+          return p;
+        }
+      }
       return candidate;
     }
 
@@ -218,7 +265,7 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
       return '👋 **Suosdei & Welcome!**\n\n'
           'I am **MyAI**, your personal AI assistant and Cambodia travel guide!\n\n'
           'I can help you with:\n'
-          '• **Specific Travel Destinations**: Curated sights across Siem Reap, Phnom Penh, Kampot, Kep, Battambang, Mondulkiri, Koh Rong, Ratanakiri & Preah Vihear.\n'
+          '• **Specific Travel Destinations**: Curated sights across Prey Veng, Siem Reap, Phnom Penh, Kampot, Kep, Battambang, Mondulkiri, Koh Rong, Ratanakiri & Preah Vihear.\n'
           '• **Exciting Places to Play**: Adventures, river kayaking, zip lines, night markets & cultural shows.\n'
           '• **Recommended Hotels & Stays**: Top-rated luxury resorts, boutique villas & eco-lodges.\n'
           '• **Live GPS Navigation**: Real-time road distances, drive times, and interactive map routes.\n\n'
@@ -241,7 +288,12 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
     String placesToPlayText = '';
     String hotelsText = '';
 
-    if (lower.contains('waterfall') || lower.contains('cascade') || lower.contains('mondulkiri')) {
+    if (lower.contains('prey veng') || lower.contains('ba phnom') || lower.contains('chhrouy chek')) {
+      destCandidate = 'Prey Veng';
+      thematicIntro = '🌾 **Specific Destination**: **Krong Prey Veng & Sacred Ba Phnom Hill** (Prey Veng Province)\n• Historic cradle of the ancient Funan kingdom and Nokor Phnom, tranquil lotus lakes, and panoramic southeastern Mekong floodplains.';
+      placesToPlayText = '🎯 **Places to Play & Activities**:\n• Hiking up sacred Ba Phnom hill to visit ancient Funan shrines and century-old Wat Vihear Chan\n• Scenic sunset stroll along Krong Prey Veng lakeside promenade and provincial park\n• Eco-boat cruise and fresh local fish cuisine at Chhrouy Chek reservoir\n• Exploring rural lotus fields and local traditional silk and craft communities';
+      hotelsText = '🏨 **Recommended Hotels & Stays**:\n• **Prey Veng River Hotel & City Lodge** (4.7 ★, Convenient central town stay with AC & lake views)\n• **Mittapheap Hotel Prey Veng** (4.6 ★, Comfortable provincial hotel near town market)\n• **Kirirom Guesthouse & Garden Resort** (4.6 ★, Relaxing local garden stay with green courtyard)';
+    } else if (lower.contains('waterfall') || lower.contains('cascade') || lower.contains('mondulkiri')) {
       destCandidate = 'Bou Sra Waterfall, Mondulkiri';
       thematicIntro = '🌊 **Specific Destination**: **Bou Sra Jungle Cascades & Elephant Valleys** (Mondulkiri Province)\n• Multi-tier thunderous waterfalls surrounded by highland pine forests and indigenous Bunong ethnic villages.';
       placesToPlayText = '🎯 **Places to Play & Activities**:\n• Ethical elephant river bathing & sanctuary jungle walk\n• Canopy zipline flying directly over Bou Sra waterfall\n• Organic Mondulkiri highland coffee farm tasting tour\n• 4x4 off-road safari & camping on rolling green plateaus';
@@ -286,17 +338,17 @@ class _AiPlaceChatScreenState extends State<AiPlaceChatScreen> {
             '',
           )
           .trim();
-      if (destCandidate.isEmpty) destCandidate = 'Angkor Wat, Siem Reap';
-      thematicIntro = '📍 **Specific Destination**: Angkor Wat & Archaeological Park (Siem Reap Province)';
-      placesToPlayText = '🎯 **Places to Play & Activities**:\n• Angkor Zipline eco-adventure & Sunrise hot air balloon ride\n• Phare Circus acrobatic show & Pub Street evening market';
-      hotelsText = '🏨 **Recommended Hotels & Stays**:\n• **Jaya House RiverPark** (4.9 ★, Luxury Eco-Boutique)\n• **Lub d Cambodia Siem Reap** (4.8 ★, Trendy Boutique Resort)';
+      if (destCandidate.isEmpty) destCandidate = 'Prey Veng';
+      thematicIntro = '📍 **Specific Destination**: $destCandidate, Cambodia';
+      placesToPlayText = '🎯 **Places to Play & Activities**:\n• Local cultural sightseeing, historic discovery & photography\n• Scenic walking routes, regional food spots & local markets';
+      hotelsText = '🏨 **Recommended Hotels & Stays**:\n• Top-rated local hotels and boutique stays in $destCandidate';
     }
 
     final results = await _mapService.searchPlace(destCandidate);
     if (results.isNotEmpty) {
       final destPlace = results.first;
       final distMeters = _mapService.calculateDistanceMeters(
-        locService.livingPlace.coordinates,
+        locService.effectiveOrigin.coordinates,
         destPlace.coordinates,
       );
       final distKm = distMeters / 1000.0;
@@ -385,30 +437,66 @@ $hotelsText
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppTheme.primaryLight.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_awesome, size: 15, color: AppTheme.primaryColor),
-                    SizedBox(width: 6),
-                    Text(
-                      'Cambodia AI Guide',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+              // Live Location & Share Button
+              ListenableBuilder(
+                listenable: UserLocationService(),
+                builder: (context, _) {
+                  final loc = UserLocationService();
+                  final isGps = loc.isGpsActive && loc.currentGpsPosition != null;
+                  final displayLoc = isGps
+                      ? (loc.state.isNotEmpty ? loc.state : loc.city)
+                      : loc.city;
+
+                  return InkWell(
+                    onTap: () => UserLocationService().shareLiveLocation(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isGps
+                            ? Colors.greenAccent.withValues(alpha: 0.15)
+                            : AppTheme.primaryColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isGps
+                              ? Colors.greenAccent.withValues(alpha: 0.6)
+                              : AppTheme.primaryLight.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isGps ? Icons.gps_fixed : Icons.share_location,
+                            size: 14,
+                            color: isGps ? Colors.greenAccent : AppTheme.primaryLight,
+                          ),
+                          const SizedBox(width: 5),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 120),
+                            child: Text(
+                              displayLoc,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isGps
+                                    ? Colors.greenAccent
+                                    : (isDark ? Colors.white : AppTheme.primaryColor),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.share,
+                            size: 11,
+                            color: isGps ? Colors.greenAccent : AppTheme.primaryLight,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
               GestureDetector(
                 onTap: widget.onOpenSettings,

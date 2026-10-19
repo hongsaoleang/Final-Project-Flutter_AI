@@ -80,11 +80,13 @@ class RouteStep {
   final String instruction;
   final double distanceMeters;
   final double durationSeconds;
+  final LatLng? coordinate;
 
   RouteStep({
     required this.instruction,
     required this.distanceMeters,
     required this.durationSeconds,
+    this.coordinate,
   });
 
   String get formattedDistance {

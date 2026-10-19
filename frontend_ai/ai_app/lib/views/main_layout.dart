@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../services/user_location_service.dart';
 import 'planner/home_explore_dashboard.dart';
 import 'planner/itinerary_details_screen.dart';
 import 'planner/bookings_boarding_pass_screen.dart';
@@ -18,6 +19,15 @@ class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
   final GlobalKey<MapGuideScreenState> _mapGuideKey = GlobalKey<MapGuideScreenState>();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-detect and initialize live device/emulator location on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UserLocationService().initLocationOnStartup();
+    });
+  }
 
   void _navigateToMapWithPlace(String placeName) {
     setState(() {
@@ -159,6 +169,30 @@ class _MainLayoutState extends State<MainLayout> {
                 onTap: () {
                   Navigator.pop(context);
                   _openBookingsScreen();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_location, color: Colors.cyanAccent),
+                title: const Text('Share My Location'),
+                subtitle: ListenableBuilder(
+                  listenable: UserLocationService(),
+                  builder: (context, _) {
+                    final loc = UserLocationService();
+                    final place = loc.isGpsActive
+                        ? (loc.state.isNotEmpty
+                            ? '${loc.city.isNotEmpty && loc.city != loc.state ? "${loc.city}, " : ""}${loc.state}'
+                            : loc.city)
+                        : '${loc.city}, ${loc.country}';
+                    return Text(
+                      place,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  UserLocationService().shareLiveLocation(context);
                 },
               ),
               const Spacer(),

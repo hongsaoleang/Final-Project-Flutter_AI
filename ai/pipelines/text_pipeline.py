@@ -87,15 +87,15 @@ class TextGenerationPipeline:
         # Name & Identity
         if any(w in clean_p for w in ["your name", "what is your name", "who are you", "what are you called", "what's your name"]):
             return (
-                "👋 My name is **MyAI**!\n\n"
-                "I am your personal AI Assistant, Travel & Navigation Companion. "
+                "👋 My name is **DER LENG**!\n\n"
+                "I am your personal AI Assistant, Travel & Navigation Companion in Cambodia. "
                 "You can ask me anything you want—from directions, travel routes, and famous landmarks, to general questions, advice, and tips!"
             )
 
         # Greetings
         if clean_p in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "howdy", "sup", "yo"]:
             return (
-                "👋 Hello! I am your AI Assistant & Travel Guide.\n\n"
+                "👋 Hello! I am **DER LENG**, your AI Assistant & Travel Guide in Cambodia.\n\n"
                 "How can I help you today? You can ask me:\n"
                 "• Any question you'd like to ask\n"
                 "• Where you want to go (e.g. 'Take me to Angkor Wat')\n"
@@ -117,7 +117,7 @@ class TextGenerationPipeline:
         # Capabilities
         if any(w in clean_p for w in ["what can you do", "help me", "features"]):
             return (
-                "🤖 I am your versatile AI Companion! Here is what I can do for you:\n\n"
+                "🤖 I am **DER LENG**, your versatile AI Companion! Here is what I can do for you:\n\n"
                 "1. 💬 **Answer Any Question**: Ask whatever you want—general questions, facts, or travel advice.\n"
                 "2. 🗺️ **Map & Navigation Guidance**: Plot live routes, calculate distances, and give turn-by-turn guidance.\n"
                 "3. 📷 **Landmark & Place Scanner**: Upload or snap a picture of any landmark to identify it instantly.\n"

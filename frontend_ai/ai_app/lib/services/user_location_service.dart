@@ -1,7 +1,12 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:share_plus/share_plus.dart';
+import '../core/constants/api_constants.dart';
 import '../models/map_route.dart';
 import 'map_service.dart';
 
@@ -105,6 +110,11 @@ class UserLocationService extends ChangeNotifier {
           popularLandmarks: ['Hollywood Sign', 'Santa Monica Pier', 'Griffith Observatory'],
         ),
         CityInfo(
+          name: 'Mountain View',
+          coordinates: LatLng(37.4220, -122.0841),
+          popularLandmarks: ['Shoreline Amphitheatre', 'Googleplex Campus', 'Castro Street Downtown', 'Computer History Museum'],
+        ),
+        CityInfo(
           name: 'San Francisco',
           coordinates: LatLng(37.7749, -122.4194),
           popularLandmarks: ['Golden Gate Bridge', 'Fisherman\'s Wharf', 'Alcatraz'],
@@ -200,9 +210,17 @@ class UserLocationService extends ChangeNotifier {
   ];
 
   String _country = 'Cambodia';
+  String _state = 'Phnom Penh';
   String _city = 'Phnom Penh';
+  String _formattedAddress = 'Phnom Penh, Cambodia';
+  bool _usePhnomPenhLocation = true;
+  bool _isReverseGeocoding = false;
+  DateTime? _lastReverseGeocodeTime;
+  LatLng? _lastGeocodedCoords;
+  bool _hasInitialized = false;
+
   PlaceLocation _livingPlace = PlaceLocation(
-    name: 'Phnom Penh Home',
+    name: 'Phnom Penh',
     displayName: 'Phnom Penh, Cambodia',
     coordinates: const LatLng(11.5564, 104.9282),
     type: 'home',
@@ -218,27 +236,83 @@ class UserLocationService extends ChangeNotifier {
   double? _accuracy;
 
   String get country => _country;
+  String get state => _state;
   String get city => _city;
+  String get formattedAddress => _formattedAddress;
+  String get stateOrCity => _state.isNotEmpty ? _state : _city;
+  bool get isReverseGeocoding => _isReverseGeocoding;
   PlaceLocation get livingPlace => _livingPlace;
   Position? get currentGpsPosition => _currentGpsPosition;
   Position? get currentPosition => _currentGpsPosition;
   bool get isGpsActive => _isGpsActive;
   bool get isLiveTracking => _isLiveTracking;
+  bool get usePhnomPenhLocation => _usePhnomPenhLocation;
   GpsStatus get gpsStatus => _gpsStatus;
   double? get heading => _heading;
   double? get speed => _speed;
   double? get accuracy => _accuracy;
 
   PlaceLocation get effectiveOrigin {
-    if (_isGpsActive && _currentGpsPosition != null) {
+    if (!_usePhnomPenhLocation && _isGpsActive && _currentGpsPosition != null) {
+      String placeName;
+      if (_city.isNotEmpty && _state.isNotEmpty && _city != _state) {
+        placeName = '$_city, $_state';
+      } else if (_state.isNotEmpty) {
+        placeName = _state;
+      } else if (_city.isNotEmpty) {
+        placeName = _city;
+      } else {
+        placeName = 'Live GPS Location';
+      }
+
+      final disp = _formattedAddress.isNotEmpty
+          ? _formattedAddress
+          : 'Live GPS (${_currentGpsPosition!.latitude.toStringAsFixed(4)}, ${_currentGpsPosition!.longitude.toStringAsFixed(4)})';
+
       return PlaceLocation(
-        name: 'My GPS Location',
-        displayName: 'Live GPS (${_currentGpsPosition!.latitude.toStringAsFixed(4)}, ${_currentGpsPosition!.longitude.toStringAsFixed(4)})',
+        name: placeName,
+        displayName: disp,
         coordinates: LatLng(_currentGpsPosition!.latitude, _currentGpsPosition!.longitude),
         type: 'gps',
       );
     }
     return _livingPlace;
+  }
+
+  /// Select Phnom Penh as the active share and routing location
+  void selectPhnomPenhLocation({
+    String name = 'Phnom Penh',
+    String specificAddress = 'Phnom Penh, Cambodia',
+    LatLng coordinates = const LatLng(11.5564, 104.9282),
+  }) {
+    _usePhnomPenhLocation = true;
+    _country = 'Cambodia';
+    _state = 'Phnom Penh';
+    _city = 'Phnom Penh';
+    _formattedAddress = specificAddress;
+    _livingPlace = PlaceLocation(
+      name: name,
+      displayName: specificAddress,
+      coordinates: coordinates,
+      type: 'home',
+    );
+    notifyListeners();
+  }
+
+  void switchToDeviceGps() {
+    _usePhnomPenhLocation = false;
+    notifyListeners();
+  }
+
+  /// Automatically initialize location tracking on app startup
+  Future<void> initLocationOnStartup() async {
+    if (_hasInitialized) return;
+    _hasInitialized = true;
+    try {
+      await startLiveLocationTracking(continuous: true);
+    } catch (e) {
+      debugPrint('Startup location init error: $e');
+    }
   }
 
   void _updateGpsPosition(Position pos) {
@@ -249,9 +323,115 @@ class UserLocationService extends ChangeNotifier {
     _isGpsActive = true;
     _gpsStatus = GpsStatus.active;
     notifyListeners();
+
+    // Trigger reverse geocoding asynchronously to resolve real State, City & Country
+    _reverseGeocode(pos.latitude, pos.longitude);
   }
 
-  /// Start live continuous location tracking on the device
+  /// Reverse geocode coordinates to extract real State, City, Country and Address
+  Future<void> _reverseGeocode(double lat, double lng) async {
+    // If Phnom Penh is explicitly selected as share location, do not overwrite with emulator coordinates
+    if (_usePhnomPenhLocation) {
+      return;
+    }
+
+    // Prevent duplicate calls if moved less than 150m within 15 seconds
+    if (_lastGeocodedCoords != null && _lastReverseGeocodeTime != null) {
+      final elapsed = DateTime.now().difference(_lastReverseGeocodeTime!);
+      if (elapsed < const Duration(seconds: 15)) {
+        final dist = MapService().calculateDistanceMeters(
+          _lastGeocodedCoords!,
+          LatLng(lat, lng),
+        );
+        if (dist < 150) return;
+      }
+    }
+
+    _lastGeocodedCoords = LatLng(lat, lng);
+    _lastReverseGeocodeTime = DateTime.now();
+    _isReverseGeocoding = true;
+
+    try {
+      // 1. Query Nominatim with English localization
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&accept-language=en',
+      );
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'DerLengTravelApp/1.0 (cambodia.travel.app)'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final addr = data['address'] as Map<String, dynamic>?;
+        if (addr != null) {
+          final fetchedCountry = addr['country']?.toString() ?? '';
+          final fetchedState = addr['state']?.toString() ??
+              addr['province']?.toString() ??
+              addr['region']?.toString() ??
+              '';
+          final fetchedCity = addr['city']?.toString() ??
+              addr['town']?.toString() ??
+              addr['municipality']?.toString() ??
+              addr['village']?.toString() ??
+              addr['county']?.toString() ??
+              '';
+          final displayName = data['display_name']?.toString() ?? '';
+
+          if (fetchedCountry.isNotEmpty) _country = fetchedCountry;
+          if (fetchedState.isNotEmpty) _state = fetchedState;
+          if (fetchedCity.isNotEmpty) _city = fetchedCity;
+          if (displayName.isNotEmpty) _formattedAddress = displayName;
+
+          _isReverseGeocoding = false;
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Nominatim reverse geocode error: $e');
+    }
+
+    // 2. Fallback to Google Geocoding if configured
+    if (ApiConstants.googleMapsApiKey.isNotEmpty) {
+      try {
+        final gUri = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lng&key=${ApiConstants.googleMapsApiKey}&language=en',
+        );
+        final gRes = await http.get(gUri).timeout(const Duration(seconds: 4));
+        if (gRes.statusCode == 200) {
+          final gData = json.decode(gRes.body);
+          if (gData['status'] == 'OK' && (gData['results'] as List).isNotEmpty) {
+            final firstResult = gData['results'][0];
+            _formattedAddress = firstResult['formatted_address']?.toString() ?? _formattedAddress;
+            final components = firstResult['address_components'] as List? ?? [];
+            for (final comp in components) {
+              final types = (comp['types'] as List?)?.map((t) => t.toString()).toList() ?? [];
+              if (types.contains('administrative_area_level_1')) {
+                _state = comp['long_name']?.toString() ?? _state;
+              }
+              if (types.contains('locality') || types.contains('administrative_area_level_2')) {
+                _city = comp['long_name']?.toString() ?? _city;
+              }
+              if (types.contains('country')) {
+                _country = comp['long_name']?.toString() ?? _country;
+              }
+            }
+            _isReverseGeocoding = false;
+            notifyListeners();
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('Google Geocoding error: $e');
+      }
+    }
+
+    _isReverseGeocoding = false;
+    notifyListeners();
+  }
+
+  /// Start live continuous location tracking on the device or emulator
   Future<GpsResult> startLiveLocationTracking({bool continuous = true}) async {
     try {
       _gpsStatus = GpsStatus.locating;
@@ -264,7 +444,7 @@ class UserLocationService extends ChangeNotifier {
         return const GpsResult(
           success: false,
           status: GpsStatus.serviceDisabled,
-          message: 'Location services are turned off on your device. Please turn on GPS.',
+          message: 'Location services are turned off on your device. Please turn on GPS in emulator settings.',
         );
       }
 
@@ -292,28 +472,25 @@ class UserLocationService extends ChangeNotifier {
         );
       }
 
-      // Fast initial lock: check last known position first
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        _updateGpsPosition(lastKnown);
+      Position? currentPos;
+
+      // 1. Fast initial lock: check last known position (often immediately available on emulators)
+      try {
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          currentPos = lastKnown;
+          _updateGpsPosition(lastKnown);
+        }
+      } catch (e) {
+        debugPrint('getLastKnownPosition error: $e');
       }
 
-      // Get high-accuracy current position
-      final currentPos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
-
-      _updateGpsPosition(currentPos);
-
-      // Start continuous stream if requested
+      // 2. Start continuous stream immediately so any fix from FusedLocation/Mock is captured
       if (continuous) {
         await _positionStreamSub?.cancel();
         const settings = LocationSettings(
-          accuracy: LocationAccuracy.bestForNavigation,
-          distanceFilter: 3,
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 2,
         );
         _positionStreamSub = Geolocator.getPositionStream(locationSettings: settings).listen(
           (pos) {
@@ -326,14 +503,61 @@ class UserLocationService extends ChangeNotifier {
         _isLiveTracking = true;
       }
 
-      return GpsResult(
-        success: true,
-        position: currentPos,
-        status: GpsStatus.active,
-        message: 'Live GPS connected! Accuracy: ${currentPos.accuracy.toStringAsFixed(1)}m',
-      );
+      // 3. If last known wasn't available, request current position with best accuracy
+      if (currentPos == null) {
+        try {
+          currentPos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              timeLimit: Duration(seconds: 4),
+            ),
+          );
+          _updateGpsPosition(currentPos);
+        } catch (e) {
+          debugPrint('High accuracy getCurrentPosition failed/timed out: $e');
+          // 4. Fallback: query low/medium accuracy or stream's first event
+          if (currentPos == null && _currentGpsPosition == null) {
+            try {
+              currentPos = await Geolocator.getCurrentPosition(
+                locationSettings: const LocationSettings(
+                  accuracy: LocationAccuracy.low,
+                  timeLimit: Duration(seconds: 4),
+                ),
+              );
+              _updateGpsPosition(currentPos);
+            } catch (e2) {
+              debugPrint('Low accuracy fallback failed: $e2');
+            }
+          }
+        }
+      }
+
+      final effectivePos = currentPos ?? _currentGpsPosition;
+      if (effectivePos != null) {
+        _updateGpsPosition(effectivePos);
+        return GpsResult(
+          success: true,
+          position: effectivePos,
+          status: GpsStatus.active,
+          message: 'Live GPS connected! Accuracy: ${effectivePos.accuracy.toStringAsFixed(1)}m',
+        );
+      } else {
+        return const GpsResult(
+          success: false,
+          status: GpsStatus.error,
+          message: 'Waiting for location signal. Ensure Location is enabled in Android Emulator.',
+        );
+      }
     } catch (e) {
       debugPrint('Error starting live location: $e');
+      if (_currentGpsPosition != null) {
+        return GpsResult(
+          success: true,
+          position: _currentGpsPosition,
+          status: GpsStatus.active,
+          message: 'Live GPS connected using available position.',
+        );
+      }
       _gpsStatus = GpsStatus.error;
       notifyListeners();
       return GpsResult(
@@ -420,5 +644,325 @@ class UserLocationService extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  /// One-tap direct share of current location or active journey with destination
+  Future<void> shareLiveLocation(
+    BuildContext context, {
+    PlaceLocation? destination,
+    RouteResult? route,
+    TravelMode? mode,
+    bool forceLiveGps = false,
+  }) async {
+    LatLng coords;
+    String locationLabel;
+    String address;
+    String regionState;
+    String countryName;
+
+    if (_usePhnomPenhLocation && !forceLiveGps) {
+      coords = _livingPlace.coordinates;
+      locationLabel = _livingPlace.name;
+      address = _formattedAddress.isNotEmpty ? _formattedAddress : 'Phnom Penh, Cambodia';
+      regionState = _state.isNotEmpty ? _state : 'Phnom Penh';
+      countryName = _country.isNotEmpty ? _country : 'Cambodia';
+    } else {
+      // 1. If not yet tracking or position null, acquire live location immediately
+      if (!_isGpsActive || _currentGpsPosition == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.greenAccent),
+                  ),
+                  SizedBox(width: 10),
+                  Text('Acquiring live phone location...'),
+                ],
+              ),
+              backgroundColor: Color(0xFF1E293B),
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        final res = await startLiveLocationTracking(continuous: true);
+        if (!res.success && _currentGpsPosition == null) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(res.message),
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      final pos = _currentGpsPosition;
+      if (pos == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not acquire phone GPS location. Please turn on Location in Android settings.'),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      coords = LatLng(pos.latitude, pos.longitude);
+
+      if (_state.isEmpty && _formattedAddress.isEmpty) {
+        await _reverseGeocode(coords.latitude, coords.longitude);
+      }
+
+      if (_state.isNotEmpty && _city.isNotEmpty && _state != _city) {
+        locationLabel = '$_city, $_state';
+      } else if (_state.isNotEmpty) {
+        locationLabel = _state;
+      } else if (_city.isNotEmpty) {
+        locationLabel = _city;
+      } else {
+        locationLabel = 'Live Phone Location';
+      }
+      address = _formattedAddress;
+      regionState = _state;
+      countryName = _country;
+    }
+
+    final googleMapsUrl = 'https://www.google.com/maps?q=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}';
+
+    final buffer = StringBuffer();
+    if (destination != null) {
+      buffer.writeln('🚗 My Location & Journey to Destination:');
+      buffer.writeln('📍 Current Location: $locationLabel');
+      if (address.isNotEmpty) {
+        buffer.writeln('🏠 Address: $address');
+      }
+      buffer.writeln('🎯 Heading to: ${destination.displayName.isNotEmpty ? destination.displayName : destination.name}');
+      if (route != null) {
+        buffer.writeln('📏 Distance: ${route.formattedDistance}');
+        buffer.writeln('⏱️ Estimated Travel Time: ${route.formattedDuration}');
+      }
+      if (mode != null) {
+        buffer.writeln('🛵 Travel Mode: ${mode.label}');
+      }
+      buffer.writeln('🌐 My GPS: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
+      buffer.writeln('🎯 Destination GPS: ${destination.coordinates.latitude.toStringAsFixed(6)}, ${destination.coordinates.longitude.toStringAsFixed(6)}');
+      final destCoords = destination.coordinates;
+      final routeUrl = 'https://www.google.com/maps/dir/?api=1&origin=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}&destination=${destCoords.latitude.toStringAsFixed(6)},${destCoords.longitude.toStringAsFixed(6)}';
+      buffer.writeln('🗺️ Google Maps Navigation: $routeUrl');
+    } else {
+      buffer.writeln('📍 My Current Live Location:');
+      buffer.writeln('📍 Location: $locationLabel');
+      if (address.isNotEmpty) {
+        buffer.writeln('🏠 Address: $address');
+      }
+      if (regionState.isNotEmpty) {
+        buffer.writeln('🏛️ State/Region: $regionState');
+      }
+      if (countryName.isNotEmpty) {
+        buffer.writeln('🌍 Country: $countryName');
+      }
+      buffer.writeln('🌐 GPS: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
+      buffer.writeln('🗺️ Google Maps: $googleMapsUrl');
+    }
+
+    final shareText = buffer.toString().trim();
+    Clipboard.setData(ClipboardData(text: shareText));
+
+    try {
+      Rect? originRect;
+      if (context.mounted) {
+        try {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box != null && box.hasSize && box.attached) {
+            originRect = box.localToGlobal(Offset.zero) & box.size;
+          }
+        } catch (_) {}
+      }
+
+      await SharePlus.instance.share(
+        ShareParams(
+          text: shareText,
+          subject: destination != null
+              ? 'My Location & Route to ${destination.name}'
+              : 'My Current Location: $locationLabel',
+          title: destination != null ? 'Share Trip Route' : 'Share Location',
+          sharePositionOrigin: originRect,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Share location error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(destination != null ? 'Trip route copied to clipboard!' : 'Location link copied: $googleMapsUrl'),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Direct method to share the real-time sensor GPS live location from phone/emulator
+  Future<void> shareRealTimeLiveGps(
+    BuildContext context, {
+    bool includeDestination = false,
+    PlaceLocation? destination,
+    RouteResult? route,
+    TravelMode? mode,
+  }) async {
+    // 1. Ensure live tracking is active
+    if (!_isGpsActive || _currentGpsPosition == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.greenAccent),
+                ),
+                SizedBox(width: 10),
+                Text('Acquiring real-time GPS location...'),
+              ],
+            ),
+            backgroundColor: Color(0xFF1E293B),
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      final res = await startLiveLocationTracking(continuous: true);
+      if (!res.success && _currentGpsPosition == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res.message),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    final pos = _currentGpsPosition!;
+    final coords = LatLng(pos.latitude, pos.longitude);
+
+    // Ensure reverse geocoding for the live GPS coordinates
+    if (_lastGeocodedCoords == null ||
+        MapService().calculateDistanceMeters(_lastGeocodedCoords!, coords) > 100) {
+      await _reverseGeocode(coords.latitude, coords.longitude);
+    }
+
+    final googleMapsUrl = 'https://www.google.com/maps?q=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}';
+
+    final buffer = StringBuffer();
+    if (includeDestination && destination != null) {
+      buffer.writeln('🚗 My Live Location & Journey:');
+      buffer.writeln('📍 Current Live GPS: ${_formattedAddress.isNotEmpty ? _formattedAddress : "Real-Time GPS (${coords.latitude.toStringAsFixed(4)}, ${coords.longitude.toStringAsFixed(4)})"}');
+      buffer.writeln('🎯 Heading to: ${destination.displayName.isNotEmpty ? destination.displayName : destination.name}');
+      if (route != null) {
+        buffer.writeln('📏 Distance: ${route.formattedDistance}');
+        buffer.writeln('⏱️ Estimated Travel Time: ${route.formattedDuration}');
+      }
+      if (mode != null) {
+        buffer.writeln('🛵 Travel Mode: ${mode.label}');
+      }
+      buffer.writeln('🌐 My Coordinates: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
+      final destCoords = destination.coordinates;
+      final routeUrl = 'https://www.google.com/maps/dir/?api=1&origin=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}&destination=${destCoords.latitude.toStringAsFixed(6)},${destCoords.longitude.toStringAsFixed(6)}';
+      buffer.writeln('🗺️ Google Maps Navigation: $routeUrl');
+    } else {
+      buffer.writeln('📍 My Current Live Location (Real-Time GPS):');
+      if (_formattedAddress.isNotEmpty) {
+        buffer.writeln('🏠 Address: $_formattedAddress');
+      } else if (_city.isNotEmpty || _state.isNotEmpty) {
+        buffer.writeln('🏙️ City: ${_city.isNotEmpty ? _city : _state}, $_country');
+      }
+      buffer.writeln('🌐 GPS Coordinates: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
+      buffer.writeln('🗺️ Google Maps: $googleMapsUrl');
+      final now = DateTime.now();
+      final timeStr = '${now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour)}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
+      buffer.writeln('⏱️ Shared at: $timeStr');
+    }
+
+    final shareText = buffer.toString().trim();
+
+    // Copy to clipboard immediately
+    await Clipboard.setData(ClipboardData(text: shareText));
+
+    try {
+      Rect? originRect;
+      if (context.mounted) {
+        try {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box != null && box.hasSize && box.attached) {
+            originRect = box.localToGlobal(Offset.zero) & box.size;
+          }
+        } catch (_) {}
+      }
+
+      await SharePlus.instance.share(
+        ShareParams(
+          text: shareText,
+          subject: 'My Live GPS Location',
+          title: 'Share Live Location',
+          sharePositionOrigin: originRect,
+        ),
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.greenAccent, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Live GPS copied & shared! (${coords.latitude.toStringAsFixed(4)}, ${coords.longitude.toStringAsFixed(4)})',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('SharePlus error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.copy, color: Colors.cyanAccent, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Live location link copied: $googleMapsUrl'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }

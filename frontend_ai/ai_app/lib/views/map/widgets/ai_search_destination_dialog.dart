@@ -24,6 +24,7 @@ class _AiSearchDestinationDialogState extends State<AiSearchDestinationDialog> {
   String? _errorMessage;
 
   final List<Map<String, String>> _quickDestinations = [
+    {'title': 'Prey Veng', 'icon': '🌾', 'prompt': 'I want to go to Prey Veng'},
     {'title': 'Angkor Wat', 'icon': '🏛️', 'prompt': 'I want to go to Angkor Wat'},
     {'title': 'Aeon Mall Sen Sok', 'icon': '🛍️', 'prompt': 'Take me to Aeon Mall Sen Sok'},
     {'title': 'Sihanoukville Beach', 'icon': '🏖️', 'prompt': 'Guide me to Sihanoukville Beach'},
@@ -47,10 +48,10 @@ class _AiSearchDestinationDialogState extends State<AiSearchDestinationDialog> {
       // 1. Extract target place using AI Natural Language parser
       final extractedPlace = MapService.extractDestinationFromPrompt(query);
 
-      // 2. Search place with fallback scoping
-      var results = await _mapService.searchPlace('$extractedPlace, ${_userLocService.city}, ${_userLocService.country}');
+      // 2. Search place: prioritize direct target name so Prey Veng is never confused with other cities
+      var results = await _mapService.searchPlace(extractedPlace);
       if (results.isEmpty) {
-        results = await _mapService.searchPlace(extractedPlace);
+        results = await _mapService.searchPlace('$extractedPlace, Cambodia');
       }
 
       if (results.isNotEmpty) {

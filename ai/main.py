@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 
-def query_openai(prompt: str, system_prompt: str = "You are MyAI, an intelligent, helpful AI assistant and travel navigation guide. Answer any question the user asks accurately and politely.") -> Optional[str]:
+def query_openai(prompt: str, system_prompt: str = "You are DER LENG, an intelligent, helpful AI assistant and travel navigation guide. Your name is DER LENG. Answer any question the user asks accurately and politely.") -> Optional[str]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -119,7 +119,7 @@ def query_groq(prompt: str, system_prompt: str = "") -> Optional[str]:
         body = {
             "model": "llama-3.1-8b-instant",
             "messages": [
-                {"role": "system", "content": system_prompt or "You are MyAI, a helpful AI assistant."},
+                {"role": "system", "content": system_prompt or "You are DER LENG, a helpful AI assistant. Your name is DER LENG."},
                 {"role": "user", "content": prompt}
             ],
             "max_tokens": 600
@@ -189,7 +189,7 @@ class PlaceScanResponse(BaseModel):
 
 class TrainRequestPayload(BaseModel):
     job_id: str
-    model_name: Optional[str] = "MyAI-Model"
+    model_name: Optional[str] = "DER-LENG-Model"
     model_type: str = "neural_network"  # 'neural_network' or 'tiny_llm'
     epochs: int = 20
     learning_rate: float = 0.05
@@ -206,7 +206,7 @@ class TrainedInferencePayload(BaseModel):
 def health_check():
     return {
         "status": "UP",
-        "service": "MyAI Python Orchestrator",
+        "service": "DER LENG AI Python Orchestrator",
         "models": ["TinyLLM", "VisionAnalyzer", "OCR-Engine", "ImageSynth", "NeuralNetworkClassifier"]
     }
 
@@ -224,10 +224,11 @@ def generate_text(payload: AiRequestPayload):
         raise HTTPException(status_code=400, detail="Prompt is required for text generation.")
 
     system_prompt = (
-        "You are MyAI, an intelligent, friendly AI assistant and premier Cambodia Travel & Navigation Guide. "
+        "You are DER LENG, an intelligent, friendly AI assistant and premier Cambodia Travel & Navigation Guide. "
+        "Your name is DER LENG (never refer to yourself as MyAI). When asked who you are or your name, proudly identify yourself as DER LENG. "
         "When answering travel questions about Cambodia or its provinces, always highlight specific iconic places to travel, "
         "exciting activities & places to play, and recommended hotels & stays. "
-        "For general questions, answer accurately, clearly, and concisely."
+        "For general questions, answer accurately, clearly, and concisely as DER LENG."
     )
 
     # 1. Try OpenAI GPT-4o-Mini if configured and has quota
@@ -262,7 +263,7 @@ def generate_text(payload: AiRequestPayload):
 
     return AiResponsePayload(
         response=generated_text,
-        model_used="MyAI-TextPipeline-v1",
+        model_used="DER-LENG-TextPipeline-v1",
         status="SUCCESS"
     )
 
@@ -273,7 +274,7 @@ def text_to_image(payload: AiRequestPayload):
     return AiResponsePayload(
         response=f"Generated visual render for prompt: '{prompt}'",
         output_image_data=None,
-        model_used="MyAI-ImageSynth-v1",
+        model_used="DER-LENG-ImageSynth-v1",
         status="SUCCESS"
     )
 
@@ -282,7 +283,7 @@ def text_to_image(payload: AiRequestPayload):
 def image_to_text(payload: AiRequestPayload):
     return AiResponsePayload(
         response="The image depicts a scene with identifiable primary foreground objects and context.",
-        model_used="MyAI-VisionCaptioner-v1",
+        model_used="DER-LENG-VisionCaptioner-v1",
         status="SUCCESS"
     )
 
@@ -291,7 +292,7 @@ def image_to_text(payload: AiRequestPayload):
 def ocr_extraction(payload: AiRequestPayload):
     return AiResponsePayload(
         response="Document OCR Results:\n1. Recognized Header\n2. Extracted text paragraphs\nConfidence: 98.4%",
-        model_used="MyAI-OCREngine-v1",
+        model_used="DER-LENG-OCREngine-v1",
         status="SUCCESS"
     )
 
@@ -301,7 +302,7 @@ def image_understanding(payload: AiRequestPayload):
     prompt = payload.prompt or "Analyze image"
     return AiResponsePayload(
         response=f"VLM Analysis for query '{prompt}': The image contains multiple distinct objects with clear spatial arrangements.",
-        model_used="MyAI-VLM-v1",
+        model_used="DER-LENG-VLM-v1",
         status="SUCCESS"
     )
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../services/user_location_service.dart';
 
 class HomeExploreDashboard extends StatefulWidget {
   final VoidCallback? onOpenMenu;
@@ -472,6 +473,51 @@ class _HomeExploreDashboardState extends State<HomeExploreDashboard> {
         },
       ],
     },
+    {
+      'title': 'Prey Veng & Ba Phnom Historical Sanctuary',
+      'province': 'Prey Veng Province',
+      'landmark': 'Prey Veng',
+      'category': 'Culture',
+      'tag': '🌾 Funan Heritage & Sacred Hill',
+      'rating': '4.8 ★',
+      'imageUrl': 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?auto=format&fit=crop&w=800&q=80',
+      'description': 'Ancient cradle of the pre-Angkorian Funan kingdom, featuring sacred Ba Phnom hill, tranquil lotus lakes, and Krong Prey Veng riverside promenade.',
+      'placesToTravel': [
+        'Ba Phnom Sacred Hill & Ancient Funan Shrines',
+        'Wat Vihear Chan & Preah Vihear Thom Pagoda',
+        'Krong Prey Veng Lake & Scenic Riverside Promenade',
+        'Chhrouy Chek Eco-Tourism Reservoir & Lotus Fields',
+      ],
+      'placesToPlay': [
+        'Hiking up Ba Phnom Sacred Hill for 360° floodplain panoramas',
+        'Sunset boat cruising and freshwater fish cuisine at Chhrouy Chek',
+        'Strolling Krong Prey Veng lakeside night market and promenade',
+        'Rural cycling through traditional silk weaving and lotus farms',
+      ],
+      'hotels': [
+        {
+          'name': 'Prey Veng River Hotel & City Lodge',
+          'rating': '4.7 ★',
+          'price': '\$\$',
+          'type': 'Central Town Hotel',
+          'perk': 'AC rooms, lake views & friendly local service',
+        },
+        {
+          'name': 'Mittapheap Hotel Prey Veng',
+          'rating': '4.6 ★',
+          'price': '\$',
+          'type': 'Provincial Comfort Stay',
+          'perk': 'Near Krong Prey Veng central market & dining',
+        },
+        {
+          'name': 'Kirirom Guesthouse & Garden Resort',
+          'rating': '4.6 ★',
+          'price': '\$',
+          'type': 'Quiet Garden Lodge',
+          'perk': 'Peaceful green courtyard & family hospitality',
+        },
+      ],
+    },
   ];
 
   List<Map<String, dynamic>> get _filteredDestinations {
@@ -573,6 +619,61 @@ class _HomeExploreDashboardState extends State<HomeExploreDashboard> {
                           ),
                         ],
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    ListenableBuilder(
+                      listenable: UserLocationService(),
+                      builder: (context, _) {
+                        final loc = UserLocationService();
+                        final isGps = loc.isGpsActive && loc.currentGpsPosition != null;
+                        final displayLoc = isGps
+                            ? (loc.state.isNotEmpty ? loc.state : loc.city)
+                            : loc.city;
+
+                        return InkWell(
+                          onTap: () => UserLocationService().shareLiveLocation(context),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isGps
+                                  ? Colors.greenAccent.withValues(alpha: 0.15)
+                                  : AppTheme.primaryColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isGps
+                                    ? Colors.greenAccent.withValues(alpha: 0.6)
+                                    : AppTheme.primaryLight.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isGps ? Icons.gps_fixed : Icons.share_location,
+                                  size: 13,
+                                  color: isGps ? Colors.greenAccent : AppTheme.primaryLight,
+                                ),
+                                const SizedBox(width: 4),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 80),
+                                  child: Text(
+                                    displayLoc,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isGps
+                                          ? Colors.greenAccent
+                                          : (isDark ? Colors.white : AppTheme.primaryColor),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 10),
                     GestureDetector(

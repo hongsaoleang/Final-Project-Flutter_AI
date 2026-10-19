@@ -72,13 +72,24 @@ class MapService {
     'kratie': const LatLng(12.4881, 106.0188),
     'pailin': const LatLng(12.8489, 102.6092),
     'pursat': const LatLng(12.5388, 103.9192),
-    'prey veng': const LatLng(11.4868, 105.3253),
+    'prey veng': const LatLng(11.4751, 105.3381),
+    'krong prey veng': const LatLng(11.4751, 105.3381),
+    'prey veng province': const LatLng(11.3660, 105.4557),
+    'ba phnom': const LatLng(11.2333, 105.3500),
+    'chhrouy chek': const LatLng(11.5167, 105.3667),
     'stung treng': const LatLng(13.5259, 105.9683),
     'svay rieng': const LatLng(11.0879, 105.7993),
     'takeo': const LatLng(10.9908, 104.7850),
     'tboung khmum': const LatLng(11.9167, 105.6500),
     'oddar meanchey': const LatLng(14.1833, 103.5167),
   };
+
+  static String _formatPlaceTitle(String key) {
+    return key
+        .split(' ')
+        .map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : '')
+        .join(' ');
+  }
 
   /// Launch Google Maps navigation between origin and destination with active travel mode
   Future<bool> openGoogleMapsDirections({
@@ -125,54 +136,50 @@ class MapService {
     return clean.isEmpty ? prompt.trim() : clean;
   }
 
-  /// Geocode a place name into coordinates using Google Geocoding API with Nominatim / fallback dictionary
+  /// Geocode a place name into coordinates using local dictionary, Nominatim, or Google Geocoding
   Future<List<PlaceLocation>> searchPlace(String query) async {
     final cleaned = extractDestinationFromPrompt(query);
     final cleanQuery = cleaned.trim().toLowerCase();
     if (cleanQuery.isEmpty) return [];
 
-    // 1. Try Google Geocoding API if key configured
-    if (ApiConstants.googleMapsApiKey.isNotEmpty) {
-      try {
-        final uri = Uri.parse(
-          'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(query)}&key=${ApiConstants.googleMapsApiKey}',
-        );
-        final response = await http.get(uri).timeout(const Duration(seconds: 4));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
-            final results = data['results'] as List;
-            return results.map((item) {
-              final loc = item['geometry']['location'];
-              return PlaceLocation(
-                name: item['address_components']?[0]?['long_name']?.toString() ?? query,
-                displayName: item['formatted_address']?.toString() ?? query,
-                coordinates: LatLng(
-                  (loc['lat'] as num).toDouble(),
-                  (loc['lng'] as num).toDouble(),
-                ),
-                type: (item['types'] as List?)?.firstOrNull?.toString(),
-              );
-            }).toList();
-          }
-        }
-      } catch (_) {
-        // Fall back to local dictionary
-      }
+    // 1. Direct exact match in curated Cambodian places dictionary
+    if (_famousPlaces.containsKey(cleanQuery)) {
+      final coords = _famousPlaces[cleanQuery]!;
+      final title = _formatPlaceTitle(cleanQuery);
+      return [
+        PlaceLocation(
+          name: title,
+          displayName: '$title, Cambodia',
+          coordinates: coords,
+          type: 'landmark',
+        )
+      ];
     }
 
-    // 2. Check local curated Cambodian places dictionary
-    for (final entry in _famousPlaces.entries) {
-      if (cleanQuery.contains(entry.key) || entry.key.contains(cleanQuery)) {
-        return [
-          PlaceLocation(
-            name: entry.key[0].toUpperCase() + entry.key.substring(1),
-            displayName: '${entry.key[0].toUpperCase() + entry.key.substring(1)}, Cambodia',
-            coordinates: entry.value,
-            type: 'landmark',
-          )
-        ];
-      }
+    // 2. Substring match prioritizing keys that appear at the beginning or have longer match
+    final matchingKeys = _famousPlaces.keys
+        .where((k) => cleanQuery.startsWith(k) || cleanQuery.contains(k) || k.contains(cleanQuery))
+        .toList();
+    if (matchingKeys.isNotEmpty) {
+      matchingKeys.sort((a, b) {
+        final aIdx = cleanQuery.indexOf(a);
+        final bIdx = cleanQuery.indexOf(b);
+        if (aIdx != -1 && bIdx != -1 && aIdx != bIdx) {
+          return aIdx.compareTo(bIdx); // Appears earlier in prompt
+        }
+        return b.length.compareTo(a.length); // Longer match first
+      });
+      final bestKey = matchingKeys.first;
+      final coords = _famousPlaces[bestKey]!;
+      final title = _formatPlaceTitle(bestKey);
+      return [
+        PlaceLocation(
+          name: title,
+          displayName: '$title, Cambodia',
+          coordinates: coords,
+          type: 'landmark',
+        )
+      ];
     }
 
     // 3. Fallback to OpenStreetMap Nominatim API
@@ -182,7 +189,7 @@ class MapService {
       );
       final response = await http.get(
         uri,
-        headers: {'User-Agent': 'MyAITravelGuide/1.0 (cambodia.travel.app)'},
+        headers: {'User-Agent': 'DerLengTravelApp/1.0 (cambodia.travel.app)'},
       ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
@@ -191,19 +198,37 @@ class MapService {
           return data.map((item) => PlaceLocation.fromJson(item)).toList();
         }
       }
-    } catch (_) {
-      // Ignore network errors and fall back
+    } catch (_) {}
+
+    // 4. Try Google Geocoding API if configured
+    if (ApiConstants.googleMapsApiKey.isNotEmpty) {
+      try {
+        final uri = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent('$cleaned, Cambodia')}&key=${ApiConstants.googleMapsApiKey}',
+        );
+        final response = await http.get(uri).timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
+            final results = data['results'] as List;
+            return results.map((item) {
+              final loc = item['geometry']['location'];
+              return PlaceLocation(
+                name: item['address_components']?[0]?['long_name']?.toString() ?? cleaned,
+                displayName: item['formatted_address']?.toString() ?? cleaned,
+                coordinates: LatLng(
+                  (loc['lat'] as num).toDouble(),
+                  (loc['lng'] as num).toDouble(),
+                ),
+                type: (item['types'] as List?)?.firstOrNull?.toString(),
+              );
+            }).toList();
+          }
+        }
+      } catch (_) {}
     }
 
-    // Default fallback in Cambodia (Phnom Penh Center)
-    return [
-      PlaceLocation(
-        name: query,
-        displayName: '$query, Cambodia',
-        coordinates: const LatLng(11.5564, 104.9282),
-        type: 'general',
-      )
-    ];
+    return [];
   }
 
   /// Calculates geodesic distance between two coordinates in meters
@@ -356,10 +381,15 @@ class MapService {
               final name = s['name']?.toString().isNotEmpty == true ? s['name'] : 'road';
               final instruction = _formatStepInstruction(maneuver, modifier, name, mode);
               final stepDist = (s['distance'] as num?)?.toDouble() ?? 0.0;
+              final loc = s['maneuver']?['location'] as List?;
+              final stepCoord = (loc != null && loc.length >= 2)
+                  ? LatLng((loc[1] as num).toDouble(), (loc[0] as num).toDouble())
+                  : null;
               return RouteStep(
                 instruction: instruction,
                 distanceMeters: stepDist,
                 durationSeconds: _estimateDurationSeconds(stepDist, mode),
+                coordinate: stepCoord,
               );
             }).toList();
           }
@@ -383,16 +413,19 @@ class MapService {
           instruction: 'Start journey from ${origin.name}',
           distanceMeters: baseRoadDistance * 0.1,
           durationSeconds: _estimateDurationSeconds(baseRoadDistance * 0.1, mode),
+          coordinate: origin.coordinates,
         ),
         RouteStep(
           instruction: '$action along main transit corridor toward ${destination.name}',
           distanceMeters: baseRoadDistance * 0.8,
           durationSeconds: _estimateDurationSeconds(baseRoadDistance * 0.8, mode),
+          coordinate: polylinePoints.length > 2 ? polylinePoints[polylinePoints.length ~/ 2] : null,
         ),
         RouteStep(
           instruction: 'Arrive at destination: ${destination.name}',
           distanceMeters: baseRoadDistance * 0.1,
           durationSeconds: _estimateDurationSeconds(baseRoadDistance * 0.1, mode),
+          coordinate: destination.coordinates,
         ),
       ];
     }
