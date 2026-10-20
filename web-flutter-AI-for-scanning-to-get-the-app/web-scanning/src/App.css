@@ -46,22 +46,27 @@
   gap: 16px;
 }
 
-/* Header Logo Container - Pure and unclipped */
+/* Header Logo Container - Fully Rounded */
 .app-icon-wrapper {
   width: 52px;
   height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2px solid rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  background: #0f172a;
+  flex-shrink: 0;
 }
 
 .app-header-logo {
-  width: 52px;
-  height: 52px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
   display: block;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .brand-title {
@@ -168,18 +173,22 @@
   width: 76px;
   height: 76px;
   flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 3px solid rgba(99, 102, 241, 0.5);
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.35);
+  background: #0f172a;
 }
 
 .hero-logo-img {
-  width: 76px;
-  height: 76px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
   display: block;
-  border-radius: 16px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .hero-heading {

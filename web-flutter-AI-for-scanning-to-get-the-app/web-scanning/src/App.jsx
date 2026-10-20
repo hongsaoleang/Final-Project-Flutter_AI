@@ -9,6 +9,7 @@ import {
   Cpu,
   Users
 } from 'lucide-react';
+import appLogo from './assets/logo.png';
 import saoleangImg from './assets/saoleang.jpg';
 import senglyImg from './assets/sengly.jpg';
 import chheyImg from './assets/chhey.jpg';
@@ -55,7 +56,7 @@ export default function App() {
         <div className="logo-group">
           <div className="app-icon-wrapper">
             <img 
-              src="/logo.png" 
+              src={appLogo} 
               alt="DER LENG AI Logo" 
               className="app-header-logo"
             />
@@ -86,7 +87,7 @@ export default function App() {
           <div className="hero-branding-row">
             <div className="hero-logo-box">
               <img 
-                src="/logo.png" 
+                src={appLogo} 
                 alt="DER LENG AI Logo" 
                 className="hero-logo-img" 
               />
