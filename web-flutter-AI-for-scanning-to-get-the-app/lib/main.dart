@@ -136,7 +136,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
             child: Image.network(
               'app_icon.png',
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(Icons.android_rounded, size: 36, color: Color(0xFF4F46E5)),
+              errorBuilder: (_, _, _) => const Icon(Icons.android_rounded, size: 36, color: Color(0xFF4F46E5)),
             ),
           ),
         ),
@@ -153,7 +153,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
               ),
             ),
             Text(
-              'Official Android APK Portal',
+              'Android APK Portal',
               style: TextStyle(
                 fontSize: 13,
                 color: isDark ? Colors.white60 : Colors.black54,
@@ -177,7 +177,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
         ),
@@ -198,10 +198,10 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
-                  'READY FOR INSTALLATION',
+                  'READY TO INSTALL',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -215,7 +215,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
                   'DIRECT APK',
@@ -231,7 +231,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Experience AI on your Android Device',
+            'AI on your Android Device',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w800,
@@ -240,7 +240,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Download the complete DER LENG AI mobile app. Scan the QR code with your mobile camera or download directly below.',
+            'Download the DER LENG AI app. Scan the QR code or download directly.',
             style: TextStyle(
               fontSize: 15,
               height: 1.5,
@@ -253,7 +253,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
             runSpacing: 12,
             children: [
               _buildBadge(Icons.android_outlined, 'Android', 'Platform', isDark),
-              _buildBadge(Icons.inventory_2_outlined, 'APK Package', 'Format', isDark),
+              _buildBadge(Icons.inventory_2_outlined, 'APK', 'Format', isDark),
               _buildBadge(Icons.verified_outlined, 'Release', 'Build', isDark),
               _buildBadge(Icons.security_outlined, 'Verified', 'Safe', isDark),
             ],
@@ -266,9 +266,9 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          _buildFeatureBullet(Icons.camera_alt_outlined, 'Live Camera Object & OCR Scanning', isDark),
-          _buildFeatureBullet(Icons.smart_toy_outlined, 'Intelligent AI Interaction & Conversation', isDark),
-          _buildFeatureBullet(Icons.speed_rounded, 'Optimized performance and quick response', isDark),
+          _buildFeatureBullet(Icons.camera_alt_outlined, 'Live Camera & OCR Scanning', isDark),
+          _buildFeatureBullet(Icons.smart_toy_outlined, 'AI Interaction & Conversation', isDark),
+          _buildFeatureBullet(Icons.speed_rounded, 'Fast performance and response', isDark),
         ],
       ),
     );
@@ -279,7 +279,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -340,7 +340,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
         ),
@@ -361,7 +361,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
               const Icon(Icons.qr_code_scanner, color: Color(0xFF4F46E5)),
               const SizedBox(width: 8),
               Text(
-                'Scan with Phone Camera',
+                'Scan to Install',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -370,7 +370,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Point phone camera at code to instantly download APK',
+            'Point your phone camera at the code to download',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
@@ -382,7 +382,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.06),
@@ -407,7 +407,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
               onPressed: _downloadApkFile,
               icon: const Icon(Icons.download_rounded, size: 22),
               label: const Text(
-                'Download APK File',
+                'Download APK',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -415,7 +415,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
                 foregroundColor: Colors.white,
                 elevation: 3,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
@@ -430,7 +430,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
         ),
@@ -444,13 +444,13 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.install_mobile_rounded, color: Color(0xFF4F46E5)),
               ),
               const SizedBox(width: 14),
               const Text(
-                'How to Install on Android',
+                'How to Install',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ],
@@ -464,21 +464,21 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
                   step: '1',
                   icon: Icons.qr_code_2,
                   title: 'Scan or Download',
-                  desc: 'Scan the QR code with phone camera or tap "Download APK File" in browser.',
+                  desc: 'Scan QR code or tap "Download APK".',
                   isDark: isDark,
                 ),
                 _buildStepCard(
                   step: '2',
                   icon: Icons.security,
                   title: 'Allow Installation',
-                  desc: 'If Android prompts "File might be harmful", tap "Download anyway" -> "Settings" -> "Allow from this source".',
+                  desc: 'Tap "Download anyway" → "Allow from this source".',
                   isDark: isDark,
                 ),
                 _buildStepCard(
                   step: '3',
                   icon: Icons.check_circle_outline,
-                  title: 'Tap Install & Open',
-                  desc: 'Open the downloaded APK file, tap "Install", and enjoy DER LENG AI!',
+                  title: 'Install & Open',
+                  desc: 'Open the APK, tap "Install", and enjoy!',
                   isDark: isDark,
                 ),
               ];
@@ -515,7 +515,7 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
         ),
@@ -525,9 +525,14 @@ class _DownloadLandingScreenState extends State<DownloadLandingScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: const Color(0xFF4F46E5),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                alignment: Alignment.center,
                 child: Text(
                   step,
                   style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),

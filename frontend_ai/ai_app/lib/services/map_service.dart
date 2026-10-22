@@ -91,6 +91,18 @@ class MapService {
         .join(' ');
   }
 
+  /// Resolve a landmark/place name to curated exact coordinates (avoiding rivers/water)
+  LatLng? getFamousPlaceCoordinates(String name) {
+    final clean = name.toLowerCase().trim();
+    if (_famousPlaces.containsKey(clean)) return _famousPlaces[clean];
+    for (final entry in _famousPlaces.entries) {
+      if (clean.contains(entry.key) || entry.key.contains(clean)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
   /// Launch Google Maps navigation between origin and destination with active travel mode
   Future<bool> openGoogleMapsDirections({
     required LatLng origin,

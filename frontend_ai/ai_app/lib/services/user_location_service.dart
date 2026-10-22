@@ -213,7 +213,7 @@ class UserLocationService extends ChangeNotifier {
   String _state = 'Phnom Penh';
   String _city = 'Phnom Penh';
   String _formattedAddress = 'Phnom Penh, Cambodia';
-  bool _usePhnomPenhLocation = true;
+  bool _usePhnomPenhLocation = false;
   bool _isReverseGeocoding = false;
   DateTime? _lastReverseGeocodeTime;
   LatLng? _lastGeocodedCoords;
@@ -253,7 +253,10 @@ class UserLocationService extends ChangeNotifier {
   double? get accuracy => _accuracy;
 
   PlaceLocation get effectiveOrigin {
-    if (!_usePhnomPenhLocation && _isGpsActive && _currentGpsPosition != null) {
+    if (!_usePhnomPenhLocation &&
+        _isGpsActive &&
+        _currentGpsPosition != null &&
+        (_currentGpsPosition!.latitude.abs() > 0.05 || _currentGpsPosition!.longitude.abs() > 0.05)) {
       String placeName;
       if (_city.isNotEmpty && _state.isNotEmpty && _city != _state) {
         placeName = '$_city, $_state';
@@ -315,7 +318,15 @@ class UserLocationService extends ChangeNotifier {
     }
   }
 
+  void updateGpsPosition(Position pos) => _updateGpsPosition(pos);
+
   void _updateGpsPosition(Position pos) {
+    // Ignore invalid / uncalibrated (0, 0) coordinates (Null Island in open ocean)
+    if (pos.latitude.abs() < 0.05 && pos.longitude.abs() < 0.05) {
+      debugPrint('Ignoring zero/ocean GPS coordinates: ${pos.latitude}, ${pos.longitude}');
+      return;
+    }
+
     _currentGpsPosition = pos;
     _heading = pos.heading;
     _speed = pos.speed;
@@ -533,7 +544,7 @@ class UserLocationService extends ChangeNotifier {
       }
 
       final effectivePos = currentPos ?? _currentGpsPosition;
-      if (effectivePos != null) {
+      if (effectivePos != null && (effectivePos.latitude.abs() > 0.05 || effectivePos.longitude.abs() > 0.05)) {
         _updateGpsPosition(effectivePos);
         return GpsResult(
           success: true,
@@ -646,172 +657,21 @@ class UserLocationService extends ChangeNotifier {
     return false;
   }
 
-  /// One-tap direct share of current location or active journey with destination
+  /// One-tap direct share of current live location where the user is located right now
   Future<void> shareLiveLocation(
     BuildContext context, {
     PlaceLocation? destination,
     RouteResult? route,
     TravelMode? mode,
-    bool forceLiveGps = false,
+    bool forceLiveGps = true,
   }) async {
-    LatLng coords;
-    String locationLabel;
-    String address;
-    String regionState;
-    String countryName;
-
-    if (_usePhnomPenhLocation && !forceLiveGps) {
-      coords = _livingPlace.coordinates;
-      locationLabel = _livingPlace.name;
-      address = _formattedAddress.isNotEmpty ? _formattedAddress : 'Phnom Penh, Cambodia';
-      regionState = _state.isNotEmpty ? _state : 'Phnom Penh';
-      countryName = _country.isNotEmpty ? _country : 'Cambodia';
-    } else {
-      // 1. If not yet tracking or position null, acquire live location immediately
-      if (!_isGpsActive || _currentGpsPosition == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.greenAccent),
-                  ),
-                  SizedBox(width: 10),
-                  Text('Acquiring live phone location...'),
-                ],
-              ),
-              backgroundColor: Color(0xFF1E293B),
-              duration: Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        final res = await startLiveLocationTracking(continuous: true);
-        if (!res.success && _currentGpsPosition == null) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(res.message),
-                backgroundColor: Colors.redAccent,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      final pos = _currentGpsPosition;
-      if (pos == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not acquire phone GPS location. Please turn on Location in Android settings.'),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return;
-      }
-
-      coords = LatLng(pos.latitude, pos.longitude);
-
-      if (_state.isEmpty && _formattedAddress.isEmpty) {
-        await _reverseGeocode(coords.latitude, coords.longitude);
-      }
-
-      if (_state.isNotEmpty && _city.isNotEmpty && _state != _city) {
-        locationLabel = '$_city, $_state';
-      } else if (_state.isNotEmpty) {
-        locationLabel = _state;
-      } else if (_city.isNotEmpty) {
-        locationLabel = _city;
-      } else {
-        locationLabel = 'Live Phone Location';
-      }
-      address = _formattedAddress;
-      regionState = _state;
-      countryName = _country;
-    }
-
-    final googleMapsUrl = 'https://www.google.com/maps?q=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}';
-
-    final buffer = StringBuffer();
-    if (destination != null) {
-      buffer.writeln('🚗 My Location & Journey to Destination:');
-      buffer.writeln('📍 Current Location: $locationLabel');
-      if (address.isNotEmpty) {
-        buffer.writeln('🏠 Address: $address');
-      }
-      buffer.writeln('🎯 Heading to: ${destination.displayName.isNotEmpty ? destination.displayName : destination.name}');
-      if (route != null) {
-        buffer.writeln('📏 Distance: ${route.formattedDistance}');
-        buffer.writeln('⏱️ Estimated Travel Time: ${route.formattedDuration}');
-      }
-      if (mode != null) {
-        buffer.writeln('🛵 Travel Mode: ${mode.label}');
-      }
-      buffer.writeln('🌐 My GPS: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
-      buffer.writeln('🎯 Destination GPS: ${destination.coordinates.latitude.toStringAsFixed(6)}, ${destination.coordinates.longitude.toStringAsFixed(6)}');
-      final destCoords = destination.coordinates;
-      final routeUrl = 'https://www.google.com/maps/dir/?api=1&origin=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}&destination=${destCoords.latitude.toStringAsFixed(6)},${destCoords.longitude.toStringAsFixed(6)}';
-      buffer.writeln('🗺️ Google Maps Navigation: $routeUrl');
-    } else {
-      buffer.writeln('📍 My Current Live Location:');
-      buffer.writeln('📍 Location: $locationLabel');
-      if (address.isNotEmpty) {
-        buffer.writeln('🏠 Address: $address');
-      }
-      if (regionState.isNotEmpty) {
-        buffer.writeln('🏛️ State/Region: $regionState');
-      }
-      if (countryName.isNotEmpty) {
-        buffer.writeln('🌍 Country: $countryName');
-      }
-      buffer.writeln('🌐 GPS: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
-      buffer.writeln('🗺️ Google Maps: $googleMapsUrl');
-    }
-
-    final shareText = buffer.toString().trim();
-    Clipboard.setData(ClipboardData(text: shareText));
-
-    try {
-      Rect? originRect;
-      if (context.mounted) {
-        try {
-          final box = context.findRenderObject() as RenderBox?;
-          if (box != null && box.hasSize && box.attached) {
-            originRect = box.localToGlobal(Offset.zero) & box.size;
-          }
-        } catch (_) {}
-      }
-
-      await SharePlus.instance.share(
-        ShareParams(
-          text: shareText,
-          subject: destination != null
-              ? 'My Location & Route to ${destination.name}'
-              : 'My Current Location: $locationLabel',
-          title: destination != null ? 'Share Trip Route' : 'Share Location',
-          sharePositionOrigin: originRect,
-        ),
-      );
-    } catch (e) {
-      debugPrint('Share location error: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(destination != null ? 'Trip route copied to clipboard!' : 'Location link copied: $googleMapsUrl'),
-            backgroundColor: const Color(0xFF1E293B),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+    return shareRealTimeLiveGps(
+      context,
+      includeDestination: destination != null,
+      destination: destination,
+      route: route,
+      mode: mode,
+    );
   }
 
   /// Direct method to share the real-time sensor GPS live location from phone/emulator
@@ -835,11 +695,11 @@ class UserLocationService extends ChangeNotifier {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.greenAccent),
                 ),
                 SizedBox(width: 10),
-                Text('Acquiring real-time GPS location...'),
+                Text('Getting location...'),
               ],
             ),
             backgroundColor: Color(0xFF1E293B),
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -859,50 +719,50 @@ class UserLocationService extends ChangeNotifier {
       }
     }
 
-    final pos = _currentGpsPosition!;
-    final coords = LatLng(pos.latitude, pos.longitude);
-
-    // Ensure reverse geocoding for the live GPS coordinates
-    if (_lastGeocodedCoords == null ||
-        MapService().calculateDistanceMeters(_lastGeocodedCoords!, coords) > 100) {
-      await _reverseGeocode(coords.latitude, coords.longitude);
+    // Ensure fresh real-time sensor GPS position where the user is currently located
+    Position? pos = _currentGpsPosition;
+    try {
+      final fresh = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 4),
+        ),
+      );
+      if (fresh.latitude.abs() > 0.05 || fresh.longitude.abs() > 0.05) {
+        pos = fresh;
+        _updateGpsPosition(fresh);
+      }
+    } catch (_) {
+      pos ??= await Geolocator.getLastKnownPosition();
     }
+
+    if (pos == null || (pos.latitude.abs() <= 0.05 && pos.longitude.abs() <= 0.05)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not acquire current GPS location. Please enable Location in Settings.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final coords = LatLng(pos.latitude, pos.longitude);
 
     final googleMapsUrl = 'https://www.google.com/maps?q=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}';
 
-    final buffer = StringBuffer();
+    // Share ONLY the direct location URL so mobile OS shares a rich location pin, NOT text
+    final String shareText;
     if (includeDestination && destination != null) {
-      buffer.writeln('🚗 My Live Location & Journey:');
-      buffer.writeln('📍 Current Live GPS: ${_formattedAddress.isNotEmpty ? _formattedAddress : "Real-Time GPS (${coords.latitude.toStringAsFixed(4)}, ${coords.longitude.toStringAsFixed(4)})"}');
-      buffer.writeln('🎯 Heading to: ${destination.displayName.isNotEmpty ? destination.displayName : destination.name}');
-      if (route != null) {
-        buffer.writeln('📏 Distance: ${route.formattedDistance}');
-        buffer.writeln('⏱️ Estimated Travel Time: ${route.formattedDuration}');
-      }
-      if (mode != null) {
-        buffer.writeln('🛵 Travel Mode: ${mode.label}');
-      }
-      buffer.writeln('🌐 My Coordinates: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
       final destCoords = destination.coordinates;
-      final routeUrl = 'https://www.google.com/maps/dir/?api=1&origin=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}&destination=${destCoords.latitude.toStringAsFixed(6)},${destCoords.longitude.toStringAsFixed(6)}';
-      buffer.writeln('🗺️ Google Maps Navigation: $routeUrl');
+      shareText = 'https://www.google.com/maps/dir/?api=1&origin=${coords.latitude.toStringAsFixed(6)},${coords.longitude.toStringAsFixed(6)}&destination=${destCoords.latitude.toStringAsFixed(6)},${destCoords.longitude.toStringAsFixed(6)}';
     } else {
-      buffer.writeln('📍 My Current Live Location (Real-Time GPS):');
-      if (_formattedAddress.isNotEmpty) {
-        buffer.writeln('🏠 Address: $_formattedAddress');
-      } else if (_city.isNotEmpty || _state.isNotEmpty) {
-        buffer.writeln('🏙️ City: ${_city.isNotEmpty ? _city : _state}, $_country');
-      }
-      buffer.writeln('🌐 GPS Coordinates: ${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}');
-      buffer.writeln('🗺️ Google Maps: $googleMapsUrl');
-      final now = DateTime.now();
-      final timeStr = '${now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour)}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
-      buffer.writeln('⏱️ Shared at: $timeStr');
+      shareText = googleMapsUrl;
     }
 
-    final shareText = buffer.toString().trim();
-
-    // Copy to clipboard immediately
+    // Copy direct location link to clipboard immediately
     await Clipboard.setData(ClipboardData(text: shareText));
 
     try {
@@ -919,45 +779,17 @@ class UserLocationService extends ChangeNotifier {
       await SharePlus.instance.share(
         ShareParams(
           text: shareText,
-          subject: 'My Live GPS Location',
-          title: 'Share Live Location',
+          subject: 'My Current Location',
+          title: 'Share Location',
           sharePositionOrigin: originRect,
         ),
       );
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.greenAccent, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Live GPS copied & shared! (${coords.latitude.toStringAsFixed(4)}, ${coords.longitude.toStringAsFixed(4)})',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF1E293B),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
     } catch (e) {
-      debugPrint('SharePlus error: $e');
+      debugPrint('Share location error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.copy, color: Colors.cyanAccent, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('Live location link copied: $googleMapsUrl'),
-                ),
-              ],
-            ),
+            content: Text('Location link copied: $googleMapsUrl'),
             backgroundColor: const Color(0xFF1E293B),
             behavior: SnackBarBehavior.floating,
           ),
