@@ -66,6 +66,8 @@ frontend_ai/ai_app/build/
 .flutter-plugins-dependencies
 .packages
 pubspec.lock
+.gradle/
+.kotlin/
 
 # Storage
 storage/uploads/*
