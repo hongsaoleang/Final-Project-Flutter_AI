@@ -227,6 +227,7 @@ class MapGuideScreenState extends State<MapGuideScreen> {
 
     _focusOnStep(0);
 
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -237,6 +238,8 @@ class MapGuideScreenState extends State<MapGuideScreen> {
               child: Text(
                 'Starting Navigation to ${_destination.name}!',
                 style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -1424,13 +1427,16 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        'STEP ${_currentNavStep + 1} OF ${_currentRoute!.steps.length}',
-                                        style: const TextStyle(
-                                          color: Colors.greenAccent,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.8,
+                                      Flexible(
+                                        child: Text(
+                                          'STEP ${_currentNavStep + 1} OF ${_currentRoute!.steps.length}',
+                                          style: const TextStyle(
+                                            color: Colors.greenAccent,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.8,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       const SizedBox(width: 6),
@@ -1466,80 +1472,98 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                IconButton.filledTonal(
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.white12,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.all(8),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(Icons.arrow_back, size: 16),
-                                  tooltip: 'Previous Step',
-                                  onPressed: _currentNavStep > 0 ? _prevNavStep : null,
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton.filledTonal(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white12,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.all(8),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                const SizedBox(width: 8),
-                                IconButton.filledTonal(
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.white12,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.all(8),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(Icons.arrow_forward, size: 16),
-                                  tooltip: 'Next Step',
-                                  onPressed: _currentNavStep < _currentRoute!.steps.length - 1 ? _nextNavStep : null,
+                                icon: const Icon(Icons.arrow_back, size: 16),
+                                tooltip: 'Previous Step',
+                                onPressed: _currentNavStep > 0 ? _prevNavStep : null,
+                              ),
+                              const SizedBox(width: 6),
+                              IconButton.filledTonal(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white12,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.all(8),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'To ${_destination.name}',
-                                  style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w500),
-                                  overflow: TextOverflow.ellipsis,
+                                icon: const Icon(Icons.arrow_forward, size: 16),
+                                tooltip: 'Next Step',
+                                onPressed: _currentNavStep < _currentRoute!.steps.length - 1 ? _nextNavStep : null,
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white10,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                TextButton.icon(
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.cyanAccent,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(Icons.share_location, size: 14),
-                                  label: const Text('Live Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  onPressed: _shareRealTimeLiveGps,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.location_on, size: 12, color: Colors.redAccent),
+                                    const SizedBox(width: 4),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 120),
+                                      child: Text(
+                                        _destination.name,
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1A73E8),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(Icons.map_rounded, size: 13),
-                                  label: const Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  onPressed: () {
-                                    _mapService.openGoogleMapsDirections(
-                                      origin: _origin.coordinates,
-                                      destination: _destination.coordinates,
-                                      mode: _selectedMode,
-                                    );
-                                  },
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.cyanAccent,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                              ],
-                            ),
-                          ],
+                                icon: const Icon(Icons.share_location, size: 14),
+                                label: const Text('Live Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                onPressed: _shareRealTimeLiveGps,
+                              ),
+                              const SizedBox(width: 6),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1A73E8),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                icon: const Icon(Icons.map_rounded, size: 13),
+                                label: const Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                onPressed: () {
+                                  _mapService.openGoogleMapsDirections(
+                                    origin: _origin.coordinates,
+                                    destination: _destination.coordinates,
+                                    mode: _selectedMode,
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
