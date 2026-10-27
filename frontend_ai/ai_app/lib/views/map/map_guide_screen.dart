@@ -165,8 +165,8 @@ class MapGuideScreenState extends State<MapGuideScreen> {
     setState(() {});
   }
 
-  /// Directly share real-time sensor GPS live location from phone/emulator
-  Future<void> _shareRealTimeLiveGps() async {
+  /// Center the map on real-time sensor GPS live location and display current location directly on the app
+  Future<void> _showLiveCurrentLocation() async {
     _userLocService.switchToDeviceGps();
     setState(() => _isLoading = true);
 
@@ -193,13 +193,43 @@ class MapGuideScreenState extends State<MapGuideScreen> {
     final activePos = pos ?? res.position ?? _userLocService.currentGpsPosition;
     if (activePos != null && (activePos.latitude.abs() > 0.05 || activePos.longitude.abs() > 0.05)) {
       final coords = LatLng(activePos.latitude, activePos.longitude);
-      _mapController.move(coords, 16.5);
       setState(() {
         _origin = _userLocService.effectiveOrigin;
         _isFollowingUser = true;
       });
+
+      // Smoothly center the map on the user's current GPS location
+      _mapController.move(coords, 16.5);
+
+      // Recalculate route directly starting from the user's live position
+      _calculateRoute(customPrompt: 'Guiding from user live GPS location to ${_destination.name}');
+
       if (mounted) {
-        await _userLocService.shareRealTimeLiveGps(context);
+        final locName = _userLocService.stateOrCity.isNotEmpty
+            ? _userLocService.stateOrCity
+            : '${coords.latitude.toStringAsFixed(4)}, ${coords.longitude.toStringAsFixed(4)}';
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.my_location, color: Colors.cyanAccent, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Current Location found: $locName',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF0F172A),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } else if (mounted) {
       _showLocationPermissionDialog(res);
@@ -1538,9 +1568,9 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                                   minimumSize: Size.zero,
                                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                icon: const Icon(Icons.share_location, size: 14),
+                                icon: const Icon(Icons.my_location, size: 14),
                                 label: const Text('Live Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                onPressed: _shareRealTimeLiveGps,
+                                onPressed: _showLiveCurrentLocation,
                               ),
                               const SizedBox(width: 6),
                               ElevatedButton.icon(
@@ -1580,7 +1610,7 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: InkWell(
-                          onTap: _shareRealTimeLiveGps,
+                          onTap: _showLiveCurrentLocation,
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -2102,12 +2132,12 @@ class MapGuideScreenState extends State<MapGuideScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          icon: const Icon(Icons.share_location, size: 14, color: Colors.cyanAccent),
+                          icon: const Icon(Icons.my_location, size: 14, color: Colors.cyanAccent),
                           label: const Text(
                             'Live Location',
                             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
                           ),
-                          onPressed: _shareRealTimeLiveGps,
+                          onPressed: _showLiveCurrentLocation,
                         ),
                         const SizedBox(width: 6),
 
