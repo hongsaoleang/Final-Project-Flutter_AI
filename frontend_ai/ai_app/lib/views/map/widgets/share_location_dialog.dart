@@ -350,12 +350,15 @@ class _ShareLocationDialogState extends State<ShareLocationDialog> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}',
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              color: Colors.white70,
-                              fontSize: 12,
+                          Expanded(
+                            child: Text(
+                              '${coords.latitude.toStringAsFixed(6)}, ${coords.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           InkWell(

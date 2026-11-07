@@ -33,12 +33,15 @@ class MessageBubble extends StatelessWidget {
                   color: isUser ? Colors.white70 : AppTheme.primaryLight,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  isUser ? 'You' : 'DER LENG (${message.mode.title})',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isUser ? Colors.white70 : AppTheme.primaryLight,
+                Flexible(
+                  child: Text(
+                    isUser ? 'You' : 'DER LENG (${message.mode.title})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isUser ? Colors.white70 : AppTheme.primaryLight,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

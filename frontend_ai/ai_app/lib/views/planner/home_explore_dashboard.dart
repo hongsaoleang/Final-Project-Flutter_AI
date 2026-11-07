@@ -594,10 +594,14 @@ class _HomeExploreDashboardState extends State<HomeExploreDashboard> {
                     ),
                   ),
                 ),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                Flexible(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -729,8 +733,10 @@ class _HomeExploreDashboardState extends State<HomeExploreDashboard> {
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
+          ],
+        ),
             const SizedBox(height: 20),
 
             // 2. Hero Banner

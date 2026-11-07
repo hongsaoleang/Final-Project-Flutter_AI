@@ -264,23 +264,29 @@ class _ItineraryDetailsScreenState extends State<ItineraryDetailsScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor,
-                                    borderRadius: BorderRadius.circular(8),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.alt_route_rounded, color: Colors.white, size: 16),
                                   ),
-                                  child: const Icon(Icons.alt_route_rounded, color: Colors.white, size: 16),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'AI Inter-Province Route',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  const Flexible(
+                                    child: Text(
+                                      'AI Inter-Province Route',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(

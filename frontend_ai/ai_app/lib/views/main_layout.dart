@@ -7,6 +7,7 @@ import 'planner/bookings_boarding_pass_screen.dart';
 import 'map/map_guide_screen.dart';
 import 'chat/ai_place_chat_screen.dart';
 import 'settings/settings_screen.dart';
+import 'test_db_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -91,124 +92,148 @@ class _MainLayoutState extends State<MainLayout> {
       drawer: Drawer(
         backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
         child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppTheme.primaryLight, width: 2),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          'assets/images/logo.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, stack) => const Icon(Icons.eco, color: AppTheme.primaryLight),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
                       children: [
-                        Text('DER LENG', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text('Cambodia Eco Edition', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppTheme.primaryLight, width: 2),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.asset(
+                                    'assets/images/logo.jpg',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (ctx, err, stack) => const Icon(Icons.eco, color: AppTheme.primaryLight),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('DER LENG', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text('Cambodia Eco Edition', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.auto_awesome_outlined),
+                          title: const Text('AI Guide'),
+                          selected: _selectedIndex == 0,
+                          selectedColor: AppTheme.primaryLight,
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 0);
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.explore_outlined),
+                          title: const Text('Explore'),
+                          selected: _selectedIndex == 1,
+                          selectedColor: AppTheme.primaryLight,
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 1);
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.map_outlined),
+                          title: const Text('Map'),
+                          selected: _selectedIndex == 2,
+                          selectedColor: AppTheme.primaryLight,
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 2);
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.route_outlined),
+                          title: const Text('Itinerary Details'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _openItineraryScreen();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.confirmation_number_outlined),
+                          title: const Text('Bookings & Passes'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _openBookingsScreen();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.share_location, color: Colors.cyanAccent),
+                          title: const Text('Share My Location'),
+                          subtitle: ListenableBuilder(
+                            listenable: UserLocationService(),
+                            builder: (context, _) {
+                              final loc = UserLocationService();
+                              final place = loc.isGpsActive
+                                  ? (loc.state.isNotEmpty
+                                      ? '${loc.city.isNotEmpty && loc.city != loc.state ? "${loc.city}, " : ""}${loc.state}'
+                                      : loc.city)
+                                  : '${loc.city}, ${loc.country}';
+                              return Text(
+                                place,
+                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            UserLocationService().shareLiveLocation(context);
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.storage_rounded, color: Colors.amber),
+                          title: const Text('PostgreSQL Database'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const TestDbScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const Spacer(),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.settings_outlined),
+                          title: const Text('Setting'),
+                          selected: _selectedIndex == 3,
+                          selectedColor: AppTheme.primaryLight,
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 3);
+                          },
+                        ),
+                        const SizedBox(height: 12),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.auto_awesome_outlined),
-                title: const Text('AI Guide'),
-                selected: _selectedIndex == 0,
-                selectedColor: AppTheme.primaryLight,
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _selectedIndex = 0);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.explore_outlined),
-                title: const Text('Explore'),
-                selected: _selectedIndex == 1,
-                selectedColor: AppTheme.primaryLight,
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _selectedIndex = 1);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.map_outlined),
-                title: const Text('Map'),
-                selected: _selectedIndex == 2,
-                selectedColor: AppTheme.primaryLight,
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _selectedIndex = 2);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.route_outlined),
-                title: const Text('Itinerary Details'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openItineraryScreen();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.confirmation_number_outlined),
-                title: const Text('Bookings & Passes'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openBookingsScreen();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_location, color: Colors.cyanAccent),
-                title: const Text('Share My Location'),
-                subtitle: ListenableBuilder(
-                  listenable: UserLocationService(),
-                  builder: (context, _) {
-                    final loc = UserLocationService();
-                    final place = loc.isGpsActive
-                        ? (loc.state.isNotEmpty
-                            ? '${loc.city.isNotEmpty && loc.city != loc.state ? "${loc.city}, " : ""}${loc.state}'
-                            : loc.city)
-                        : '${loc.city}, ${loc.country}';
-                    return Text(
-                      place,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
-                    );
-                  },
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  UserLocationService().shareLiveLocation(context);
-                },
-              ),
-              const Spacer(),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.settings_outlined),
-                title: const Text('Setting'),
-                selected: _selectedIndex == 3,
-                selectedColor: AppTheme.primaryLight,
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _selectedIndex = 3);
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
+              );
+            },
           ),
         ),
       ),
